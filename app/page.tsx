@@ -1,15 +1,14 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { LLMHelper } from "realtime-ai";
 import { DailyVoiceClient } from "realtime-ai-daily";
 import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
-
 import App from "@/components/App";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
+import StoryVisualizer from "@/components/StoryVisualizer";
 import {
   BOT_READY_TIMEOUT,
   defaultConfig,
@@ -18,13 +17,13 @@ import {
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
+  const [storyText, setStoryText] = useState("");
   const voiceClientRef = useRef<DailyVoiceClient | null>(null);
 
   useEffect(() => {
     if (!showSplash || voiceClientRef.current) {
       return;
     }
-
     const voiceClient = new DailyVoiceClient({
       baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
       services: defaultServices,
@@ -33,8 +32,14 @@ export default function Home() {
     });
     const llmHelper = new LLMHelper({});
     voiceClient.registerHelper("llm", llmHelper);
-
     voiceClientRef.current = voiceClient;
+
+    // Add message handler for storytelling
+    voiceClient.on("message", (message) => {
+      if (typeof message === "string") {
+        setStoryText((prevStory) => prevStory + message);
+      }
+    });
   }, [showSplash]);
 
   if (showSplash) {
@@ -49,6 +54,7 @@ export default function Home() {
             <Header />
             <div id="app">
               <App />
+              <StoryVisualizer storyText={storyText} />
             </div>
           </main>
           <aside id="tray" />

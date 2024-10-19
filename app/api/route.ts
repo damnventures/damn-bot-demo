@@ -17,7 +17,23 @@ export async function POST(request: Request) {
       api_keys: {
         openai: process.env.OPENAI_API_KEY,
       },
-      config: [...config],
+      config: [
+        ...config,
+        {
+          service: "llm",
+          options: [
+            {
+              name: "initial_messages",
+              value: [
+                {
+                  role: "system",
+                  content: defaultLLMPrompt,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     };
 
     console.log('Payload being sent to Daily Bots:', JSON.stringify(payload, null, 2));
