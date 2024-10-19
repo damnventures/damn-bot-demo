@@ -1,12 +1,9 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
-
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { LLMHelper } from "realtime-ai";
 import { DailyVoiceClient } from "realtime-ai-daily";
 import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
-
 import App from "@/components/App";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
