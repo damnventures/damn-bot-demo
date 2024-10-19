@@ -1,4 +1,3 @@
-// [POST] /api
 import { defaultBotProfile, defaultMaxDuration } from "./../../rtvi.config";
 
 export async function POST(request: Request) {
@@ -43,8 +42,15 @@ export async function POST(request: Request) {
     return Response.json(res);
   } catch (error) {
     console.error('Error in API route:', error);
-    return new Response(`Internal Server Error: ${error.message}`, {
-      status: 500,
-    });
+
+    if (error instanceof Error) {
+      return new Response(`Internal Server Error: ${error.message}`, {
+        status: 500,
+      });
+    } else {
+      return new Response('Internal Server Error', {
+        status: 500,
+      });
+    }
   }
 }
