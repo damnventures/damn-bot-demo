@@ -37,13 +37,13 @@ class CustomVoiceMessage implements VoiceMessage {
   id: string;
   type: string;
   data: any;
-  label?: string;
+  label: string;
 
-  constructor(input: string) {
+  constructor(input: string, label: string = 'User Input') {
     this.id = Date.now().toString();
     this.type = 'text';
     this.data = { content: input };
-    this.label = 'User Input';
+    this.label = label;
   }
 
   serialize(): string {
