@@ -103,14 +103,27 @@ export default function Home() {
       // Add user message to conversation
       setConversation(prev => [...prev, { role: 'user', content: input }]);
 
+      // Create a VoiceMessage object
+      const message: VoiceMessage = {
+        type: 'text',
+        data: input
+      };
+
       // Send message to voice client
-      const response = await dailyVoiceClient.sendMessage(input);
+      const response = await dailyVoiceClient.sendMessage(message);
 
-      // Add AI response to conversation
-      setConversation(prev => [...prev, { role: 'assistant', content: response.content }]);
+      // Handle the response
+      if (response && typeof response === 'object' && 'data' in response) {
+        const responseContent = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
 
-      // Update story text (assuming the response includes the updated story)
-      setStoryText(prev => prev + " " + response.content);
+        // Add AI response to conversation
+        setConversation(prev => [...prev, { role: 'assistant', content: responseContent }]);
+
+        // Update story text
+        setStoryText(prev => prev + " " + responseContent);
+      } else {
+        console.warn("Unexpected response format:", response);
+      }
 
       // Clear input field
       setInputValue("");
