@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { VoiceClientAudio, VoiceClientProvider, useVoiceClient, useVoiceClientEvent } from "realtime-ai-react";
-import { VoiceEvent, VoiceMessage } from "realtime-ai";
+import { VoiceEvent } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
@@ -50,21 +50,20 @@ export default function Home() {
   const [imagePrompt, setImagePrompt] = useState("");
   const voiceClient = useVoiceClient();
 
-  const handleBotTranscript = useCallback((message: VoiceMessage) => {
-    const data = message.data as string;
-    setStoryText((prevStory) => prevStory + data);
-    setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+  const handleBotTranscript = useCallback((text: string) => {
+    setStoryText((prevStory) => prevStory + text);
+    setConversation(prev => [...prev, { role: 'assistant', content: text }]);
 
-    const match = data.match(/<([^>]+)>/);
+    const match = text.match(/<([^>]+)>/);
     if (match) {
       setImagePrompt(match[1]);
     }
   }, []);
 
-  const handleGenericMessage = useCallback((message: VoiceMessage) => {
-    console.log("Generic message received:", message);
-    if (typeof message.data === 'object' && message.data !== null && 'content' in message.data) {
-      const content = (message.data as any).content;
+  const handleGenericMessage = useCallback((data: any) => {
+    console.log("Generic message received:", data);
+    if (typeof data === 'object' && data !== null && 'content' in data) {
+      const content = data.content;
       if (typeof content === 'string') {
         setStoryText((prevStory) => prevStory + content);
         setConversation(prev => [...prev, { role: 'assistant', content }]);
