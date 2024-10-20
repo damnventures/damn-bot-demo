@@ -1,4 +1,3 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -48,9 +47,15 @@ export default function Home() {
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const voiceClient = useVoiceClient();
 
+  useEffect(() => {
+    console.log("Voice client:", voiceClient);
+  }, [voiceClient]);
+
   const handleBotTranscript = useCallback((data: string) => {
+    console.log("Bot transcript received:", data);
     setStoryText((prevStory) => prevStory + data);
     setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
@@ -62,16 +67,19 @@ export default function Home() {
 
   const handleError = useCallback((message: any) => {
     console.error("Error:", message);
+    setError(message.toString());
   }, []);
 
   useEffect(() => {
     if (voiceClient) {
+      console.log("Setting up voice client listeners");
       voiceClient.on('botTranscript', handleBotTranscript);
       voiceClient.on('error', handleError);
     }
 
     return () => {
       if (voiceClient) {
+        console.log("Removing voice client listeners");
         voiceClient.off('botTranscript', handleBotTranscript);
         voiceClient.off('error', handleError);
       }
@@ -82,6 +90,7 @@ export default function Home() {
     if (voiceClient) {
       setConversation(prev => [...prev, { role: 'user', content: input }]);
       try {
+        console.log("Sending message:", input);
         const message: VoiceMessage = {
           id: Date.now().toString(),
           type: 'text',
@@ -92,12 +101,20 @@ export default function Home() {
         await voiceClient.sendMessage(message);
       } catch (error) {
         console.error("Failed to send user input:", error);
+        setError(`Failed to send message: ${error}`);
       }
+    } else {
+      console.error("Voice client is not available");
+      setError("Voice client is not available");
     }
   };
 
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
   }
 
   return (
@@ -110,12 +127,14 @@ export default function Home() {
             <StoryVisualizer storyText={storyText} />
             <ConversationDisplay conversation={conversation} />
             <DalleImageGenerator imagePrompt={imagePrompt} />
-            {voiceClient && (
+            {voiceClient ? (
               <input
                 type="text"
                 onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
                 placeholder="Type your response here and press Enter"
               />
+            ) : (
+              <div>Loading voice client...</div>
             )}
           </div>
         </main>
