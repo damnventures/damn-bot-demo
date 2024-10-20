@@ -1,21 +1,15 @@
+/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { LLMHelper } from "realtime-ai";
-import { DailyVoiceClient } from "realtime-ai-daily";
-import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
-import App from "@/components/App";
+import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
 import StoryVisualizer from "@/components/StoryVisualizer";
-import {
-  BOT_READY_TIMEOUT,
-  defaultConfig,
-  defaultServices,
-} from "@/rtvi.config";
+import App from "@/components/App";
 
 interface Message {
   role: string;
@@ -53,65 +47,49 @@ export default function Home() {
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
-  const [isBotStarted, setIsBotStarted] = useState(false);
-  const voiceClientRef = useRef<DailyVoiceClient | null>(null);
+  const voiceClient = useVoiceClient();
 
   useEffect(() => {
-    if (!showSplash || voiceClientRef.current) {
-      return;
-    }
-    const voiceClient = new DailyVoiceClient({
-      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-      services: defaultServices,
-      config: defaultConfig,
-      timeout: BOT_READY_TIMEOUT,
-      callbacks: {
-        onBotReady: () => {
-          console.log("Bot is ready!");
-          setIsBotStarted(true);
-        },
-        onBotTranscript: (data: string) => {
-          setStoryText((prevStory) => prevStory + data);
-          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+    if (voiceClient) {
+      voiceClient.on('transcript', (data: string) => {
+        setStoryText((prevStory) => prevStory + data);
+        setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-          const match = data.match(/<([^>]+)>/);
-          if (match) {
-            setImagePrompt(match[1]);
-          }
-        },
-        onGenericMessage: (data: unknown) => {
-          console.log("Generic message received:", data);
-          if (typeof data === 'object' && data !== null && 'content' in data) {
-            const content = (data as any).content;
-            if (typeof content === 'string') {
-              setStoryText((prevStory) => prevStory + content);
-              setConversation(prev => [...prev, { role: 'assistant', content }]);
+        const match = data.match(/<([^>]+)>/);
+        if (match) {
+          setImagePrompt(match[1]);
+        }
+      });
 
-              const match = content.match(/<([^>]+)>/);
-              if (match) {
-                setImagePrompt(match[1]);
-              }
+      voiceClient.on('genericMessage', (data: unknown) => {
+        console.log("Generic message received:", data);
+        if (typeof data === 'object' && data !== null && 'content' in data) {
+          const content = (data as any).content;
+          if (typeof content === 'string') {
+            setStoryText((prevStory) => prevStory + content);
+            setConversation(prev => [...prev, { role: 'assistant', content }]);
+
+            const match = content.match(/<([^>]+)>/);
+            if (match) {
+              setImagePrompt(match[1]);
             }
           }
-        },
-        onError: (message: any) => {
-          console.error("Error:", message);
-        },
-      },
-    });
+        }
+      });
+    }
 
-    voiceClientRef.current = voiceClient;
-  }, [showSplash]);
+    return () => {
+      if (voiceClient) {
+        voiceClient.off('transcript');
+        voiceClient.off('genericMessage');
+      }
+    };
+  }, [voiceClient]);
 
   const handleUserInput = async (input: string) => {
-    setConversation(prev => [...prev, { role: 'user', content: input }]);
-
-    if (voiceClientRef.current) {
-      try {
-        await voiceClientRef.current.sendTextMessage(input);
-      } catch (error) {
-        console.error("Failed to send user input:", error);
-      }
+    if (voiceClient) {
+      setConversation(prev => [...prev, { role: 'user', content: input }]);
+      await voiceClient.sendTextMessage(input);
     }
   };
 
@@ -120,7 +98,7 @@ export default function Home() {
   }
 
   return (
-    <VoiceClientProvider voiceClient={voiceClientRef.current!}>
+    <VoiceClientProvider>
       <AppProvider>
         <TooltipProvider>
           <main>
@@ -130,13 +108,12 @@ export default function Home() {
               <StoryVisualizer storyText={storyText} />
               <ConversationDisplay conversation={conversation} />
               <DalleImageGenerator imagePrompt={imagePrompt} />
-              {isBotStarted && (
-                <input
-                  type="text"
-                  onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
-                  placeholder="Type your response here and press Enter"
-                />
-              )}
+              <input
+                type="text"
+                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                placeholder="Type your response here and press Enter"
+                disabled={!voiceClient}
+              />
             </div>
           </main>
           <aside id="tray" />
