@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
-import { VoiceMessage, LLMHelper, VADHelper } from "realtime-ai";
+import { VoiceMessage, LLMHelper } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
@@ -107,9 +107,6 @@ export default function Home() {
 
     const llmHelper = new LLMHelper({});
     voiceClient.registerHelper("llm", llmHelper);
-
-    const vadHelper = new VADHelper({});
-    voiceClient.registerHelper("vad", vadHelper);
 
     voiceClientRef.current = voiceClient;
   }, [showSplash]);
