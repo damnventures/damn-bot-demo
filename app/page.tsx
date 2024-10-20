@@ -96,7 +96,6 @@ export default function Home() {
         },
         onGenericMessage: (data: unknown) => {
           console.log("Generic message received:", data);
-          // You might want to handle different types of messages here
         },
         onError: (error: any) => {
           console.error("Error:", error);
@@ -116,28 +115,17 @@ export default function Home() {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
 
     if (voiceClientRef.current) {
-      // Instead of using start() to send input, we'll use a custom event
-      const event = new CustomEvent('userInput', { detail: input });
-      window.dispatchEvent(event);
+      voiceClientRef.current.sendAction({
+        service: 'llm',
+        action: 'text',
+        arguments: [
+          { name: 'text', value: input }
+        ]
+      }).catch((error) => {
+        console.error("Failed to send user input:", error);
+      });
     }
   };
-
-  useEffect(() => {
-    // Listen for the custom userInput event
-    const handleUserInputEvent = (event: CustomEvent) => {
-      if (voiceClientRef.current) {
-        voiceClientRef.current.start(event.detail).catch((error) => {
-          console.error("Failed to send user input:", error);
-        });
-      }
-    };
-
-    window.addEventListener('userInput', handleUserInputEvent as EventListener);
-
-    return () => {
-      window.removeEventListener('userInput', handleUserInputEvent as EventListener);
-    };
-  }, []);
 
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
