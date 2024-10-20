@@ -64,6 +64,8 @@ const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt })
   ) : null;
 };
 
+const [isBotStarted, setIsBotStarted] = useState(false);
+
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [storyText, setStoryText] = useState("");
@@ -83,6 +85,7 @@ export default function Home() {
       callbacks: {
         onBotReady: () => {
           console.log("Bot is ready!");
+          setIsBotStarted(true);
         },
         onBotTranscript: (data: string) => {
           setStoryText((prevStory) => prevStory + data);
@@ -200,6 +203,7 @@ export default function Home() {
                 type="text"
                 onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
                 placeholder="Type your response here and press Enter"
+                disabled={!isBotStarted}
               />
             </div>
           </main>
