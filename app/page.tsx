@@ -1,16 +1,16 @@
+/* eslint-disable simple-import-sort/imports */
 "use client";
 
-import { useEffect, useState } from "react";
-import { DailyVoiceClient } from "realtime-ai-daily";
-import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
-import App from "./App";
+import { useEffect, useState, useCallback } from "react";
+import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
+import { VoiceMessage } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
 import StoryVisualizer from "@/components/StoryVisualizer";
-import ConversationDisplay from "@/components/ConversationDisplay";
-import DalleImageGenerator from "@/components/DalleImageGenerator";
+import App from "@/components/App";
 
 interface Message {
   role: string;
