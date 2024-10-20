@@ -36,13 +36,13 @@ const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversati
 class CustomVoiceMessage implements VoiceMessage {
   id: string;
   type: string;
-  data: string;
-  label: string;
+  data: any;
+  label?: string;
 
   constructor(input: string) {
     this.id = Date.now().toString();
     this.type = 'text';
-    this.data = input;
+    this.data = { content: input };
     this.label = 'User Input';
   }
 
@@ -145,11 +145,19 @@ export default function Home() {
     // Create a CustomVoiceMessage object
     const message = new CustomVoiceMessage(input);
 
+    console.log("Sending message:", message);
+
     // Send message to voice client
-    await voiceClientRef.current.sendMessage(message);
+    const response = await voiceClientRef.current.sendMessage(message);
+
+    console.log("Received response:", response);
 
     // Handle the response
-    // For now, we'll use a placeholder. In a real application, you'd listen for a response from the voice client.
+    if (response && response.type === 'error') {
+      throw new Error(response.data.error);
+    }
+
+    // For now, we'll use a placeholder. In a real application, you'd process the actual response.
     const placeholderResponse = "I've received your message. [Placeholder for AI response]";
 
     // Add AI response to conversation
@@ -162,11 +170,27 @@ export default function Home() {
     setInputValue("");
   } catch (error) {
     console.error("Error sending message:", error);
-    setError("Failed to send message. Please try again.");
+    setError(`Failed to send message: ${error.message}`);
   } finally {
     setIsLoading(false);
   }
 }, [voiceClientRef]);
+
+// Add this useEffect to set up an error listener
+useEffect(() => {
+  if (voiceClientRef.current) {
+    const errorHandler = (error) => {
+      console.error("VoiceClient error:", error);
+      setError(`VoiceClient error: ${error.message}`);
+    };
+
+    voiceClientRef.current.on('error', errorHandler);
+
+    return () => {
+      voiceClientRef.current?.off('error', errorHandler);
+    };
+  }
+}, [voiceClientRef.current]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
