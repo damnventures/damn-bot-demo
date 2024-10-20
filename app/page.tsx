@@ -84,16 +84,22 @@ export default function Home() {
         onBotReady: () => {
           console.log("Bot is ready!");
         },
-        transcript: (data) => {
-          if (data.final) {
-            setStoryText((prevStory) => prevStory + data.text);
-            setConversation(prev => [...prev, { role: 'assistant', content: data.text }]);
+        onBotTranscript: (data: string) => {
+          setStoryText((prevStory) => prevStory + data);
+          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-            // Extract image prompt
-            const match = data.text.match(/<([^>]+)>/);
-            if (match) {
-              setImagePrompt(match[1]);
-            }
+          // Extract image prompt
+          const match = data.match(/<([^>]+)>/);
+          if (match) {
+            setImagePrompt(match[1]);
+          }
+        },
+        onTtsText: (text: string) => {
+          console.log("TTS Text:", text);
+        },
+        onUserTranscription: (data: { text: string; isFinal: boolean }) => {
+          if (data.isFinal) {
+            setConversation(prev => [...prev, { role: 'user', content: data.text }]);
           }
         },
       },
@@ -112,8 +118,10 @@ export default function Home() {
 
     if (voiceClientRef.current) {
       try {
-        // This is a guess - the actual method might be different
-        await voiceClientRef.current.start(input);
+        // Here we need to find the correct method to send text input to the bot
+        // This might be different for DailyVoiceClient
+        // For now, let's assume there's a method called sendText
+        await voiceClientRef.current.sendText(input);
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
