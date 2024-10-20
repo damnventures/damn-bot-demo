@@ -16,11 +16,7 @@ export const Splash: React.FC<SplashProps> = ({ handleReady }) => {
         </h1>
 
         <p className="text-primary-500 text-xl font-semibold leading-relaxed">
-          Claude 3.5 Sonnet <br />
-          Together Llama 3.1 &nbsp; 8B <br />
-          Together Llama 3.1 &nbsp; 70B <br />
-          Together Llama 3.1 &nbsp; 405B <br />
-          GPT-4o mini
+          What it does
         </p>
 
         <Button onClick={() => handleReady()}>Try Demo</Button>
@@ -30,21 +26,11 @@ export const Splash: React.FC<SplashProps> = ({ handleReady }) => {
         <footer className="flex flex-col lg:gap-2">
           <Button variant="light" asChild>
             <a
-              href="https://www.daily.co/products/daily-bots/"
-              className="text-indigo-600"
-            >
-              <Info className="size-6" />
-              Learn more about Daily Bots
-            </a>
-          </Button>
-
-          <Button variant="light" asChild>
-            <a
               href="https://github.com/daily-demos/daily-bots-web-demo"
               className="text-indigo-600"
             >
               <Book className="size-6" />
-              Demo source code
+              Shrinked Link
             </a>
           </Button>
         </footer>
