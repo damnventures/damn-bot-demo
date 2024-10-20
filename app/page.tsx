@@ -16,9 +16,37 @@ import {
   defaultServices,
 } from "@/rtvi.config";
 
+// New component for text conversation display
+const ConversationDisplay = ({ conversation }) => (
+  <div className="conversation-display">
+    {conversation.map((message, index) => (
+      <div key={index} className={`message ${message.role}`}>
+        <strong>{message.role === 'user' ? 'You' : 'Storyteller'}:</strong> {message.content}
+      </div>
+    ))}
+  </div>
+);
+
+// New component for DALL-E image generation
+const DalleImageGenerator = ({ imagePrompt }) => {
+  const [imageUrl, setImageUrl] = useState("");
+
+  useEffect(() => {
+    if (imagePrompt) {
+      // Here you would typically call your DALL-E API
+      // For this example, we'll just use a placeholder
+      setImageUrl(`https://via.placeholder.com/300x200?text=${encodeURIComponent(imagePrompt)}`);
+    }
+  }, [imagePrompt]);
+
+  return imageUrl ? <img src={imageUrl} alt="Generated story scene" /> : null;
+};
+
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [storyText, setStoryText] = useState("");
+  const [conversation, setConversation] = useState([]);
+  const [imagePrompt, setImagePrompt] = useState("");
   const voiceClientRef = useRef<DailyVoiceClient | null>(null);
 
   useEffect(() => {
@@ -39,9 +67,21 @@ export default function Home() {
     voiceClient.on("llmJsonCompletion", (data: any) => {
       if (typeof data.content === "string") {
         setStoryText((prevStory) => prevStory + data.content);
+        setConversation(prev => [...prev, { role: 'assistant', content: data.content }]);
+
+        // Extract image prompt
+        const match = data.content.match(/<([^>]+)>/);
+        if (match) {
+          setImagePrompt(match[1]);
+        }
       }
     });
   }, [showSplash]);
+
+  const handleUserInput = (input: string) => {
+    setConversation(prev => [...prev, { role: 'user', content: input }]);
+    voiceClientRef.current?.sendText(input);
+  };
 
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
@@ -56,6 +96,13 @@ export default function Home() {
             <div id="app">
               <App />
               <StoryVisualizer storyText={storyText} />
+              <ConversationDisplay conversation={conversation} />
+              <DalleImageGenerator imagePrompt={imagePrompt} />
+              <input
+                type="text"
+                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                placeholder="Type your response here and press Enter"
+              />
             </div>
           </main>
           <aside id="tray" />
