@@ -105,8 +105,11 @@ export default function Home() {
 
       // Create a VoiceMessage object
       const message: VoiceMessage = {
+        id: Date.now().toString(), // Generate a unique ID
         type: 'text',
-        data: input
+        data: input,
+        label: 'User Input', // You can customize this label
+        serialize: () => JSON.stringify({ type: 'text', data: input }) // Simple serialization method
       };
 
       // Send message to voice client
