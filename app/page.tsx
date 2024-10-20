@@ -94,13 +94,8 @@ export default function Home() {
             setImagePrompt(match[1]);
           }
         },
-        onTtsText: (text: string) => {
-          console.log("TTS Text:", text);
-        },
-        onUserTranscription: (data: { text: string; isFinal: boolean }) => {
-          if (data.isFinal) {
-            setConversation(prev => [...prev, { role: 'user', content: data.text }]);
-          }
+        onError: (error: any) => {
+          console.error("Bot error:", error);
         },
       },
     });
@@ -118,10 +113,13 @@ export default function Home() {
 
     if (voiceClientRef.current) {
       try {
-        // Here we need to find the correct method to send text input to the bot
-        // This might be different for DailyVoiceClient
-        // For now, let's assume there's a method called sendText
-        await voiceClientRef.current.sendText(input);
+        // For now, we'll use the LLMHelper to send text input
+        const llmHelper = voiceClientRef.current.getHelper('llm') as LLMHelper;
+        if (llmHelper) {
+          await llmHelper.sendTextMessage(input);
+        } else {
+          console.error("LLMHelper not found");
+        }
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
