@@ -1,4 +1,3 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -105,28 +104,26 @@ export default function Home() {
 
       // Create a VoiceMessage object
       const message: VoiceMessage = {
-        id: Date.now().toString(), // Generate a unique ID
+        id: Date.now().toString(),
         type: 'text',
         data: input,
-        label: 'User Input', // You can customize this label
-        serialize: () => JSON.stringify({ type: 'text', data: input }) // Simple serialization method
+        label: 'User Input',
+        serialize: () => JSON.stringify({ type: 'text', data: input })
       };
 
       // Send message to voice client
-      const response = await dailyVoiceClient.sendMessage(message);
+      await dailyVoiceClient.sendMessage(message);
 
-      // Handle the response
-      if (response && typeof response === 'object' && 'data' in response) {
-        const responseContent = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+      // Since sendMessage doesn't return a response, we'll need to handle the AI's response differently
+      // This might involve setting up an event listener or using a callback function
+      // For now, we'll just add a placeholder response
+      const placeholderResponse = "I've received your message. [Placeholder for AI response]";
 
-        // Add AI response to conversation
-        setConversation(prev => [...prev, { role: 'assistant', content: responseContent }]);
+      // Add AI response to conversation
+      setConversation(prev => [...prev, { role: 'assistant', content: placeholderResponse }]);
 
-        // Update story text
-        setStoryText(prev => prev + " " + responseContent);
-      } else {
-        console.warn("Unexpected response format:", response);
-      }
+      // Update story text
+      setStoryText(prev => prev + " " + placeholderResponse);
 
       // Clear input field
       setInputValue("");
