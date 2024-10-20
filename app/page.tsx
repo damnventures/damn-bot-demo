@@ -119,12 +119,16 @@ export default function Home() {
       // Add user message to conversation
       setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-      // Create a simplified VoiceMessage object
+      // Create a VoiceMessage object with a serialize method
       const message: VoiceMessage = {
         id: Date.now().toString(),
         type: 'text',
         data: input,
-        label: 'User Input'
+        label: 'User Input',
+        serialize: function() {
+          const { serialize, ...rest } = this;
+          return JSON.stringify(rest);
+        }
       };
 
       // Send message to voice client
