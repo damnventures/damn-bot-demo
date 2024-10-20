@@ -35,8 +35,8 @@ const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversati
 
 class CustomVoiceMessage implements VoiceMessage {
   id: string;
-  type: string;
-  data: any;
+  type: 'text' | 'audio' | 'error';
+  data: { content: string };
   label: string;
 
   constructor(input: string, label: string = 'User Input') {
@@ -145,7 +145,7 @@ export default function Home() {
       // Create a CustomVoiceMessage object
       const message = new CustomVoiceMessage(input);
 
-      console.log("Sending message:", message);
+      console.log("Sending message:", JSON.stringify(message, null, 2));
 
       // Send message to voice client
       await voiceClientRef.current.sendMessage(message);
@@ -167,6 +167,8 @@ export default function Home() {
       console.error("Error sending message:", error);
       if (error instanceof Error) {
         setError(`Failed to send message: ${error.message}`);
+      } else if (typeof error === 'object' && error !== null) {
+        setError(`Failed to send message: ${JSON.stringify(error)}`);
       } else {
         setError('Failed to send message: An unknown error occurred');
       }
@@ -182,6 +184,8 @@ useEffect(() => {
       console.error("VoiceClient error:", error);
       if (error instanceof Error) {
         setError(`VoiceClient error: ${error.message}`);
+      } else if (typeof error === 'object' && error !== null) {
+        setError(`VoiceClient error: ${JSON.stringify(error, null, 2)}`);
       } else {
         setError('VoiceClient error: An unknown error occurred');
       }
