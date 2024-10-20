@@ -84,20 +84,19 @@ export default function Home() {
         onBotReady: () => {
           console.log("Bot is ready!");
         },
-        onBotTranscript: (data: string) => {
-          setStoryText((prevStory) => prevStory + data);
-          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+        transcript: (data: any) => {
+          if (data.final) {
+            setStoryText((prevStory) => prevStory + data.text);
+            setConversation(prev => [...prev, { role: 'assistant', content: data.text }]);
 
-          // Extract image prompt
-          const match = data.match(/<([^>]+)>/);
-          if (match) {
-            setImagePrompt(match[1]);
+            // Extract image prompt
+            const match = data.text.match(/<([^>]+)>/);
+            if (match) {
+              setImagePrompt(match[1]);
+            }
           }
         },
-        onGenericMessage: (data: unknown) => {
-          console.log("Generic message received:", data);
-        },
-        onError: (error: any) => {
+        error: (error: any) => {
           console.error("Error:", error);
         },
       },
@@ -111,19 +110,40 @@ export default function Home() {
     });
   }, [showSplash]);
 
-  const handleUserInput = (input: string) => {
+  const handleUserInput = async (input: string) => {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
 
     if (voiceClientRef.current) {
-      voiceClientRef.current.sendAction({
-        service: 'llm',
-        action: 'text',
-        arguments: [
-          { name: 'text', value: input }
-        ]
-      }).catch((error) => {
+      try {
+        // Disconnect the current session
+        voiceClientRef.current.disconnect();
+
+        // Update the config with the user's input
+        const updatedConfig = [...defaultConfig];
+        const llmConfig = updatedConfig.find(c => c.service === 'llm');
+        if (llmConfig && llmConfig.options) {
+          const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
+          if (initialMessages && Array.isArray(initialMessages.value)) {
+            initialMessages.value.push({ role: 'user', content: [{ type: 'text', text: input }] });
+          }
+        }
+
+        // Reinitialize the client with the updated config
+        const newVoiceClient = new DailyVoiceClient({
+          baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
+          services: defaultServices,
+          config: updatedConfig,
+          timeout: BOT_READY_TIMEOUT,
+          callbacks: voiceClientRef.current.callbacks,
+        });
+
+        voiceClientRef.current = newVoiceClient;
+
+        // Start the new session
+        await newVoiceClient.start();
+      } catch (error) {
         console.error("Failed to send user input:", error);
-      });
+      }
     }
   };
 
