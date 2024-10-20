@@ -1,6 +1,9 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
+import { LLMHelper } from "realtime-ai";
 import { DailyVoiceClient } from "realtime-ai-daily";
 import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
 import App from "@/components/App";
@@ -124,6 +127,7 @@ export default function Home() {
           callbacks: {
             onBotReady: () => {
               console.log("Bot is ready!");
+              setIsBotStarted(true);
             },
             onBotTranscript: (data: string) => {
               setStoryText((prevStory) => prevStory + data);
