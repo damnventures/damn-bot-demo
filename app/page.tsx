@@ -1,154 +1,112 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import Image from 'next/image';
+import { useEffect, useState } from "react";
+import { DailyVoiceClient } from "realtime-ai-daily";
+import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
+import App from "./App";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
-import { VoiceMessage } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
 import StoryVisualizer from "@/components/StoryVisualizer";
-import App from "@/components/App";
+import ConversationDisplay from "@/components/ConversationDisplay";
+import DalleImageGenerator from "@/components/DalleImageGenerator";
 
 interface Message {
   role: string;
   content: string;
 }
 
-const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversation }) => (
-  <div className="conversation-display">
-    {conversation.map((message, index) => (
-      <div key={index} className={`message ${message.role}`}>
-        <strong>{message.role === 'user' ? 'You' : 'Storyteller'}:</strong> {message.content}
-      </div>
-    ))}
-  </div>
-);
-
-const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt }) => {
-  const [imageUrl, setImageUrl] = useState("");
-
-  useEffect(() => {
-    if (imagePrompt) {
-      setImageUrl(`https://via.placeholder.com/300x200?text=${encodeURIComponent(imagePrompt)}`);
-    }
-  }, [imagePrompt]);
-
-  return imageUrl ? (
-    <div style={{ position: 'relative', width: '300px', height: '200px' }}>
-      <Image src={imageUrl} alt="Generated story scene" layout="fill" objectFit="contain" />
-    </div>
-  ) : null;
-};
-
 export default function Home() {
+  const [dailyVoiceClient, setDailyVoiceClient] = useState<DailyVoiceClient | null>(null);
   const [showSplash, setShowSplash] = useState(true);
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const voiceClient = useVoiceClient();
 
   useEffect(() => {
-    console.log("Voice client:", voiceClient);
-    if (!voiceClient) {
-      setError("Voice client is not available. Please check VoiceClientProvider setup.");
-    } else {
-      setError(null);
+    if (dailyVoiceClient) {
+      return;
     }
-  }, [voiceClient]);
+    const voiceClient = new DailyVoiceClient({
+      baseUrl: "/api",
+      services: {
+        llm: "together",
+        tts: "cartesia",
+      },
+      config: [
+        {
+          service: "tts",
+          options: [
+            { name: "voice", value: "79a125e8-cd45-4c13-8a67-188112f4dd22" },
+          ],
+        },
+        {
+          service: "llm",
+          options: [
+            {
+              name: "model",
+              value: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+            },
+            {
+              name: "initial_messages",
+              value: [
+                {
+                  role: "system",
+                  content:
+                    "You are a assistant called ExampleBot. You can ask me anything. Keep responses brief and legible.",
+                },
+              ],
+            },
+            { name: "run_on_config", value: true },
+          ],
+        },
+      ],
+    });
+    setDailyVoiceClient(voiceClient);
 
-  const handleBotTranscript = useCallback((data: string) => {
-    console.log("Bot transcript received:", data);
-    setStoryText((prevStory) => prevStory + data);
-    setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+    voiceClient.on('botTranscript', (data: string) => {
+      setStoryText((prevStory) => prevStory + data);
+      setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-    const match = data.match(/<([^>]+)>/);
-    if (match) {
-      setImagePrompt(match[1]);
-    }
-  }, []);
-
-  const handleError = useCallback((message: any) => {
-    console.error("Error:", message);
-    setError(message.toString());
-  }, []);
-
-  useEffect(() => {
-    if (voiceClient) {
-      console.log("Setting up voice client listeners");
-      voiceClient.on('botTranscript', handleBotTranscript);
-      voiceClient.on('error', handleError);
-
-      return () => {
-        console.log("Removing voice client listeners");
-        voiceClient.off('botTranscript', handleBotTranscript);
-        voiceClient.off('error', handleError);
-      };
-    }
-  }, [voiceClient, handleBotTranscript, handleError]);
-
-  const handleUserInput = async (input: string) => {
-    if (voiceClient) {
-      setConversation(prev => [...prev, { role: 'user', content: input }]);
-      try {
-        console.log("Sending message:", input);
-        const message: VoiceMessage = {
-          id: Date.now().toString(),
-          type: 'text',
-          label: 'User Input',
-          data: input,
-          serialize: () => JSON.stringify({ type: 'text', data: input })
-        };
-        await voiceClient.sendMessage(message);
-      } catch (error) {
-        console.error("Failed to send user input:", error);
-        setError(`Failed to send message: ${error}`);
+      const match = data.match(/<([^>]+)>/);
+      if (match) {
+        setImagePrompt(match[1]);
       }
-    } else {
-      console.error("Voice client is not available");
-      setError("Voice client is not available. Cannot send message.");
-    }
-  };
+    });
+
+    voiceClient.on('error', (error: any) => {
+      console.error("Voice client error:", error);
+    });
+
+    return () => {
+      voiceClient.off('botTranscript');
+      voiceClient.off('error');
+    };
+  }, [dailyVoiceClient]);
 
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
   }
 
-  if (error) {
-    return (
-      <div>
-        <h2>Error</h2>
-        <p>{error}</p>
-        <p>Please check the console for more details and ensure that VoiceClientProvider is properly set up.</p>
-      </div>
-    );
-  }
-
   return (
-    <AppProvider>
-      <TooltipProvider>
-        <main>
-          <Header />
-          <div id="app">
-            <App />
-            <StoryVisualizer storyText={storyText} />
-            <ConversationDisplay conversation={conversation} />
-            <DalleImageGenerator imagePrompt={imagePrompt} />
-            {voiceClient ? (
-              <input
-                type="text"
-                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
-                placeholder="Type your response here and press Enter"
-              />
-            ) : (
-              <div>Voice client is not available. Please check the setup.</div>
-            )}
-          </div>
-        </main>
-        <aside id="tray" />
-      </TooltipProvider>
-    </AppProvider>
+    <VoiceClientProvider voiceClient={dailyVoiceClient!}>
+      <AppProvider>
+        <TooltipProvider>
+          <main className="flex min-h-screen flex-col items-center justify-between p-24">
+            <Header />
+            <div className="flex flex-col gap-4 items-center">
+              <h1 className="text-4xl font-bold">My First Daily Bot</h1>
+              <App />
+              <StoryVisualizer storyText={storyText} />
+              <ConversationDisplay conversation={conversation} />
+              <DalleImageGenerator imagePrompt={imagePrompt} />
+            </div>
+          </main>
+          <aside id="tray" />
+        </TooltipProvider>
+      </AppProvider>
+      <VoiceClientAudio />
+    </VoiceClientProvider>
   );
 }
