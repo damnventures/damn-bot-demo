@@ -98,8 +98,8 @@ export default function Home() {
           console.log("Generic message received:", data);
           // You might want to handle different types of messages here
         },
-        onError: (message: VoiceMessage) => {
-          console.error("Error:", message);
+        onError: (error: any) => {
+          console.error("Error:", error);
         },
       },
     });
