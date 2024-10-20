@@ -1,4 +1,3 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -91,6 +90,18 @@ export default function Home() {
       });
       setDailyVoiceClient(voiceClient);
     }
+  }, [dailyVoiceClient]);
+
+  const handleUserInput = useCallback((input: string) => {
+    if (!dailyVoiceClient) return;
+
+    // Add user message to conversation
+    setConversation(prev => [...prev, { role: 'user', content: input }]);
+
+    // Send message to voice client
+    dailyVoiceClient.sendTextMessage(input);
+
+    // Clear input field (you might need to add a state for input value)
   }, [dailyVoiceClient]);
 
   // ... (rest of the component logic remains unchanged)
