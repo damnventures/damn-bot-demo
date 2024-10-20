@@ -84,17 +84,22 @@ export default function Home() {
         onBotReady: () => {
           console.log("Bot is ready!");
         },
-        onLlmJsonCompletion: (data: any) => {
-          if (typeof data.content === "string") {
-            setStoryText((prevStory) => prevStory + data.content);
-            setConversation(prev => [...prev, { role: 'assistant', content: data.content }]);
+        onBotTranscript: (data: string) => {
+          setStoryText((prevStory) => prevStory + data);
+          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-            // Extract image prompt
-            const match = data.content.match(/<([^>]+)>/);
-            if (match) {
-              setImagePrompt(match[1]);
-            }
+          // Extract image prompt
+          const match = data.match(/<([^>]+)>/);
+          if (match) {
+            setImagePrompt(match[1]);
           }
+        },
+        onGenericMessage: (data: unknown) => {
+          console.log("Generic message received:", data);
+          // You might want to handle different types of messages here
+        },
+        onError: (message: VoiceMessage) => {
+          console.error("Error:", message);
         },
       },
     });
@@ -111,11 +116,28 @@ export default function Home() {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
 
     if (voiceClientRef.current) {
-      voiceClientRef.current.start(input).catch((error) => {
-        console.error("Failed to send user input:", error);
-      });
+      // Instead of using start() to send input, we'll use a custom event
+      const event = new CustomEvent('userInput', { detail: input });
+      window.dispatchEvent(event);
     }
   };
+
+  useEffect(() => {
+    // Listen for the custom userInput event
+    const handleUserInputEvent = (event: CustomEvent) => {
+      if (voiceClientRef.current) {
+        voiceClientRef.current.start(event.detail).catch((error) => {
+          console.error("Failed to send user input:", error);
+        });
+      }
+    };
+
+    window.addEventListener('userInput', handleUserInputEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('userInput', handleUserInputEvent as EventListener);
+    };
+  }, []);
 
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
