@@ -51,6 +51,8 @@ export default function Home() {
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!dailyVoiceClient) {
@@ -93,19 +95,42 @@ export default function Home() {
     }
   }, [dailyVoiceClient]);
 
-  const handleUserInput = useCallback((input: string) => {
+  const handleUserInput = useCallback(async (input: string) => {
     if (!dailyVoiceClient) return;
 
-    // Add user message to conversation
-    setConversation(prev => [...prev, { role: 'user', content: input }]);
+    setIsLoading(true);
+    try {
+      // Add user message to conversation
+      setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-    // Send message to voice client
-    dailyVoiceClient.sendTextMessage(input);
+      // Send message to voice client
+      const response = await dailyVoiceClient.sendMessage(input);
 
-    // Clear input field (you might need to add a state for input value)
+      // Add AI response to conversation
+      setConversation(prev => [...prev, { role: 'assistant', content: response.content }]);
+
+      // Update story text (assuming the response includes the updated story)
+      setStoryText(prev => prev + " " + response.content);
+
+      // Clear input field
+      setInputValue("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setError("Failed to send message. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [dailyVoiceClient]);
 
-  // ... (rest of the component logic remains unchanged)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isLoading) {
+      handleUserInput(inputValue);
+    }
+  };
 
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
@@ -129,12 +154,16 @@ export default function Home() {
               {dailyVoiceClient ? (
                 <input
                   type="text"
-                  onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyPress={handleKeyPress}
                   placeholder="Type your response here and press Enter"
+                  disabled={isLoading}
                 />
               ) : (
                 <div>Loading voice client...</div>
               )}
+              {isLoading && <div>Processing your request...</div>}
             </div>
           </main>
           <aside id="tray" />
