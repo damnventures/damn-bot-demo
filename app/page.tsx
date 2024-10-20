@@ -1,4 +1,3 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -109,48 +108,7 @@ export default function Home() {
 
     if (voiceClientRef.current) {
       try {
-        await voiceClientRef.current.disconnect();
-
-        const updatedConfig = [...defaultConfig];
-        const llmConfig = updatedConfig.find(c => c.service === 'llm');
-        if (llmConfig && llmConfig.options) {
-          const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
-          if (initialMessages && Array.isArray(initialMessages.value)) {
-            initialMessages.value.push({ role: 'user', content: input });
-          }
-        }
-
-        const newVoiceClient = new DailyVoiceClient({
-          baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-          services: defaultServices,
-          config: updatedConfig,
-          timeout: BOT_READY_TIMEOUT,
-          callbacks: {
-            onBotReady: () => {
-              console.log("Bot is ready!");
-              setIsBotStarted(true);
-            },
-            onBotTranscript: (data: string) => {
-              setStoryText((prevStory) => prevStory + data);
-              setConversation(prev => [...prev, { role: 'assistant', content: data }]);
-
-              const match = data.match(/<([^>]+)>/);
-              if (match) {
-                setImagePrompt(match[1]);
-              }
-            },
-            onGenericMessage: (data: unknown) => {
-              console.log("Generic message received:", data);
-            },
-            onError: (message: any) => {
-              console.error("Error:", message);
-            },
-          },
-        });
-
-        voiceClientRef.current = newVoiceClient;
-
-        await newVoiceClient.start();
+        await voiceClientRef.current.sendTextMessage(input);
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
@@ -172,12 +130,13 @@ export default function Home() {
               <StoryVisualizer storyText={storyText} />
               <ConversationDisplay conversation={conversation} />
               <DalleImageGenerator imagePrompt={imagePrompt} />
-              <input
-                type="text"
-                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
-                placeholder="Type your response here and press Enter"
-                disabled={!isBotStarted}
-              />
+              {isBotStarted && (
+                <input
+                  type="text"
+                  onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                  placeholder="Type your response here and press Enter"
+                />
+              )}
             </div>
           </main>
           <aside id="tray" />
