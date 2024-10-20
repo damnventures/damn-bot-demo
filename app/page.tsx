@@ -35,13 +35,13 @@ const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversati
 
 class CustomVoiceMessage implements VoiceMessage {
   id: string;
-  type: 'text' | 'audio' | 'error';
+  type: 'audio';
   data: { content: string };
   label: 'rtvi-ai';
 
   constructor(input: string) {
     this.id = Date.now().toString();
-    this.type = 'text';
+    this.type = 'audio';
     this.data = { content: input };
     this.label = 'rtvi-ai';
   }
@@ -148,9 +148,9 @@ export default function Home() {
     console.log("Sending message:", JSON.stringify(message, null, 2));
 
     // Send message to voice client
-    await voiceClientRef.current.sendMessage(message);
+    const response = await voiceClientRef.current.sendMessage(message);
 
-    console.log("Message sent successfully");
+    console.log("Message sent successfully. Server response:", response);
 
     // For now, we'll use a placeholder. In a real application, you'd process the actual response.
     const placeholderResponse = "I've received your message. [Placeholder for AI response]";
