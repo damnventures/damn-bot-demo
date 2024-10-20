@@ -37,13 +37,13 @@ class CustomVoiceMessage implements VoiceMessage {
   id: string;
   type: 'text' | 'audio' | 'error';
   data: { content: string };
-  label: string;
+  label: 'rtvi-ai';
 
-  constructor(input: string, label: string = 'User Input') {
+  constructor(input: string) {
     this.id = Date.now().toString();
     this.type = 'text';
     this.data = { content: input };
-    this.label = label;
+    this.label = 'rtvi-ai';
   }
 
   serialize(): string {
@@ -135,47 +135,47 @@ export default function Home() {
   }, [showSplash]);
 
   const handleUserInput = useCallback(async (input: string) => {
-    if (!voiceClientRef.current) return;
+  if (!voiceClientRef.current) return;
 
-    setIsLoading(true);
-    try {
-      // Add user message to conversation
-      setConversation(prev => [...prev, { role: 'user', content: input }]);
+  setIsLoading(true);
+  try {
+    // Add user message to conversation
+    setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-      // Create a CustomVoiceMessage object
-      const message = new CustomVoiceMessage(input);
+    // Create a CustomVoiceMessage object
+    const message = new CustomVoiceMessage(input);
 
-      console.log("Sending message:", JSON.stringify(message, null, 2));
+    console.log("Sending message:", JSON.stringify(message, null, 2));
 
-      // Send message to voice client
-      await voiceClientRef.current.sendMessage(message);
+    // Send message to voice client
+    await voiceClientRef.current.sendMessage(message);
 
-      console.log("Message sent successfully");
+    console.log("Message sent successfully");
 
-      // For now, we'll use a placeholder. In a real application, you'd process the actual response.
-      const placeholderResponse = "I've received your message. [Placeholder for AI response]";
+    // For now, we'll use a placeholder. In a real application, you'd process the actual response.
+    const placeholderResponse = "I've received your message. [Placeholder for AI response]";
 
-      // Add AI response to conversation
-      setConversation(prev => [...prev, { role: 'assistant', content: placeholderResponse }]);
+    // Add AI response to conversation
+    setConversation(prev => [...prev, { role: 'assistant', content: placeholderResponse }]);
 
-      // Update story text
-      setStoryText(prev => prev + " " + placeholderResponse);
+    // Update story text
+    setStoryText(prev => prev + " " + placeholderResponse);
 
-      // Clear input field
-      setInputValue("");
-    } catch (error: unknown) {
-      console.error("Error sending message:", error);
-      if (error instanceof Error) {
-        setError(`Failed to send message: ${error.message}`);
-      } else if (typeof error === 'object' && error !== null) {
-        setError(`Failed to send message: ${JSON.stringify(error)}`);
-      } else {
-        setError('Failed to send message: An unknown error occurred');
-      }
-    } finally {
-      setIsLoading(false);
+    // Clear input field
+    setInputValue("");
+  } catch (error: unknown) {
+    console.error("Error sending message:", error);
+    if (error instanceof Error) {
+      setError(`Failed to send message: ${error.message}`);
+    } else if (typeof error === 'object' && error !== null) {
+      setError(`Failed to send message: ${JSON.stringify(error, null, 2)}`);
+    } else {
+      setError('Failed to send message: An unknown error occurred');
     }
-  }, [voiceClientRef]);
+  } finally {
+    setIsLoading(false);
+  }
+}, [voiceClientRef]);
 
 // Add this useEffect to set up an error listener
 useEffect(() => {
