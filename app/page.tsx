@@ -80,37 +80,43 @@ export default function Home() {
       services: defaultServices,
       config: defaultConfig,
       timeout: BOT_READY_TIMEOUT,
+      callbacks: {
+        onBotReady: () => {
+          console.log("Bot is ready!");
+        },
+        transcript: (data) => {
+          if (data.final) {
+            setStoryText((prevStory) => prevStory + data.text);
+            setConversation(prev => [...prev, { role: 'assistant', content: data.text }]);
+
+            // Extract image prompt
+            const match = data.text.match(/<([^>]+)>/);
+            if (match) {
+              setImagePrompt(match[1]);
+            }
+          }
+        },
+      },
     });
-    const llmHelper = new LLMHelper({});
-    voiceClient.registerHelper("llm", llmHelper);
+
     voiceClientRef.current = voiceClient;
 
-    // Add message handler for storytelling
-    voiceClient.on("llmJsonCompletion", (data: any) => {
-      if (typeof data.content === "string") {
-        setStoryText((prevStory) => prevStory + data.content);
-        setConversation(prev => [...prev, { role: 'assistant', content: data.content }]);
-
-        // Extract image prompt
-        const match = data.content.match(/<([^>]+)>/);
-        if (match) {
-          setImagePrompt(match[1]);
-        }
-      }
+    // Start the voice client
+    voiceClient.start().catch((e) => {
+      console.error("Failed to start voice client:", e);
     });
   }, [showSplash]);
 
-  const handleUserInput = (input: string) => {
+  const handleUserInput = async (input: string) => {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
 
     if (voiceClientRef.current) {
-      voiceClientRef.current.sendAction({
-        service: 'llm',
-        action: 'text',
-        arguments: [
-          { name: 'text', value: input }
-        ]
-      });
+      try {
+        // This is a guess - the actual method might be different
+        await voiceClientRef.current.start(input);
+      } catch (error) {
+        console.error("Failed to send user input:", error);
+      }
     }
   };
 
