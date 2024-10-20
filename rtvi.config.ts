@@ -62,12 +62,6 @@ export const defaultServices = {
   stt: "deepgram",
 };
 
-export const defaultServices = {
-  llm: "together",
-  tts: "cartesia",
-  stt: "deepgram",
-};
-
 export const defaultLLMPrompt = `You are a creative storyteller who loves to tell whimsical, fantastical stories.
 Your goal is to craft engaging and fun stories for listeners.
 Start by briefly introducing yourself as a storyteller and ask what kind of story the listener would like to hear.
