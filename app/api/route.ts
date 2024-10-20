@@ -1,4 +1,4 @@
-import { defaultBotProfile, defaultMaxDuration } from "./../../rtvi.config";
+import { defaultBotProfile, defaultMaxDuration, defaultLLMPrompt } from "./../../rtvi.config";
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +9,6 @@ export async function POST(request: Request) {
         status: 400,
       });
     }
-
     const payload = {
       bot_profile: defaultBotProfile,
       max_duration: defaultMaxDuration,
@@ -35,9 +34,7 @@ export async function POST(request: Request) {
         },
       ],
     };
-
     console.log('Payload being sent to Daily Bots:', JSON.stringify(payload, null, 2));
-
     const req = await fetch(process.env.DAILY_BOTS_URL, {
       method: "POST",
       headers: {
@@ -46,19 +43,15 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify(payload),
     });
-
     const res = await req.json();
     console.log('Response from Daily Bots:', JSON.stringify(res, null, 2));
-
     if (req.status !== 200) {
       console.error('Error response from Daily Bots:', req.status, res);
       return Response.json(res, { status: req.status });
     }
-
     return Response.json(res);
   } catch (error) {
     console.error('Error in API route:', error);
-
     if (error instanceof Error) {
       return new Response(`Internal Server Error: ${error.message}`, {
         status: 500,
