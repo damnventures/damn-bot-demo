@@ -83,8 +83,11 @@ export default function Home() {
       setConversation(prev => [...prev, { role: 'user', content: input }]);
       try {
         const message: VoiceMessage = {
+          id: Date.now().toString(),
           type: 'text',
-          data: input
+          label: 'User Input',
+          data: input,
+          serialize: () => JSON.stringify({ type: 'text', data: input })
         };
         await voiceClient.sendMessage(message);
       } catch (error) {
