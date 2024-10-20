@@ -131,15 +131,61 @@ export default function Home() {
 
   if (voiceClientRef.current) {
     try {
-      const llmHelper = voiceClientRef.current.getHelper('llm') as LLMHelper;
-      if (llmHelper) {
-        await llmHelper.sendMessage({
-          role: 'user',
-          content: input
-        });
-      } else {
-        console.error("LLMHelper not found");
+      await voiceClientRef.current.disconnect();
+
+      const updatedConfig = [...defaultConfig];
+      const llmConfig = updatedConfig.find(c => c.service === 'llm');
+      if (llmConfig && llmConfig.options) {
+        const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
+        if (initialMessages && Array.isArray(initialMessages.value)) {
+          initialMessages.value.push({ role: 'user', content: input });
+        }
       }
+
+      const newVoiceClient = new DailyVoiceClient({
+        baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
+        services: defaultServices,
+        config: updatedConfig,
+        timeout: BOT_READY_TIMEOUT,
+        callbacks: {
+          onBotReady: () => {
+            console.log("Bot is ready!");
+          },
+          onBotTranscript: (data: string) => {
+            setStoryText((prevStory) => prevStory + data);
+            setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+
+            // Extract image prompt
+            const match = data.match(/<([^>]+)>/);
+            if (match) {
+              setImagePrompt(match[1]);
+            }
+          },
+          onGenericMessage: (data: unknown) => {
+            console.log("Generic message received:", data);
+            if (typeof data === 'object' && data !== null && 'content' in data) {
+              const content = (data as any).content;
+              if (typeof content === 'string') {
+                setStoryText((prevStory) => prevStory + content);
+                setConversation(prev => [...prev, { role: 'assistant', content }]);
+
+                // Extract image prompt
+                const match = content.match(/<([^>]+)>/);
+                if (match) {
+                  setImagePrompt(match[1]);
+                }
+              }
+            }
+          },
+          onError: (message: any) => {
+            console.error("Error:", message);
+          },
+        },
+      });
+
+      voiceClientRef.current = newVoiceClient;
+
+      await newVoiceClient.start();
     } catch (error) {
       console.error("Failed to send user input:", error);
     }
