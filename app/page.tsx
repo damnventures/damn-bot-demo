@@ -39,21 +39,7 @@ const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt })
 
   useEffect(() => {
     if (imagePrompt) {
-      // Here you would typically call your DALL-E API
-      // For this example, we'll just use a placeholder
       setImageUrl(`https://via.placeholder.com/300x200?text=${encodeURIComponent(imagePrompt)}`);
-
-      // When integrating with a real image generation API, you'd do something like this:
-      // const generateImage = async () => {
-      //   const response = await fetch('/api/generate-image', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({ prompt: imagePrompt }),
-      //   });
-      //   const data = await response.json();
-      //   setImageUrl(data.imageUrl);
-      // };
-      // generateImage();
     }
   }, [imagePrompt]);
 
@@ -69,13 +55,13 @@ export default function Home() {
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
-  const voiceClientRef = useRef<DailyVoiceClient | null>(null);
+  const [voiceClient, setVoiceClient] = useState<DailyVoiceClient | null>(null);
 
   useEffect(() => {
-    if (!showSplash || voiceClientRef.current) {
+    if (!showSplash || voiceClient) {
       return;
     }
-    const voiceClient = new DailyVoiceClient({
+    const newVoiceClient = new DailyVoiceClient({
       baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
       services: defaultServices,
       config: defaultConfig,
@@ -88,7 +74,6 @@ export default function Home() {
           setStoryText((prevStory) => prevStory + data);
           setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-          // Extract image prompt
           const match = data.match(/<([^>]+)>/);
           if (match) {
             setImagePrompt(match[1]);
@@ -102,7 +87,6 @@ export default function Home() {
               setStoryText((prevStory) => prevStory + content);
               setConversation(prev => [...prev, { role: 'assistant', content }]);
 
-              // Extract image prompt
               const match = content.match(/<([^>]+)>/);
               if (match) {
                 setImagePrompt(match[1]);
@@ -116,77 +100,35 @@ export default function Home() {
       },
     });
 
-    voiceClientRef.current = voiceClient;
-
-    // Start the voice client
-    voiceClient.start().catch((e) => {
-      console.error("Failed to start voice client:", e);
-    });
-  }, [showSplash]);
+    setVoiceClient(newVoiceClient);
+  }, [showSplash, voiceClient]);
 
   const handleUserInput = async (input: string) => {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-    if (voiceClientRef.current) {
+    if (voiceClient) {
       try {
-        // Disconnect the current session
-        await voiceClientRef.current.disconnect();
-
-        // Update the config with the user's input
-        const updatedConfig = [...defaultConfig];
-        const llmConfig = updatedConfig.find(c => c.service === 'llm');
-        if (llmConfig && llmConfig.options) {
-          const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
-          if (initialMessages && Array.isArray(initialMessages.value)) {
-            initialMessages.value.push({ role: 'user', content: input });
-          }
+        const llmHelper = voiceClient.getHelper('llm') as LLMHelper;
+        if (llmHelper) {
+          await llmHelper.sendMessage({
+            role: 'user',
+            content: input
+          });
+        } else {
+          console.error("LLMHelper not found");
         }
-
-        // Reinitialize the client with the updated config
-        const newVoiceClient = new DailyVoiceClient({
-          baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-          services: defaultServices,
-          config: updatedConfig,
-          timeout: BOT_READY_TIMEOUT,
-          callbacks: {
-            onBotReady: () => {
-              console.log("Bot is ready!");
-            },
-            onBotTranscript: (data: string) => {
-              setStoryText((prevStory) => prevStory + data);
-              setConversation(prev => [...prev, { role: 'assistant', content: data }]);
-
-              // Extract image prompt
-              const match = data.match(/<([^>]+)>/);
-              if (match) {
-                setImagePrompt(match[1]);
-              }
-            },
-            onGenericMessage: (data: unknown) => {
-              console.log("Generic message received:", data);
-              // You might want to handle different types of messages here
-            },
-            onError: (message: any) => {
-              console.error("Error:", message);
-            },
-          },
-        });
-
-        voiceClientRef.current = newVoiceClient;
-
-        // Start the new session
-        await newVoiceClient.start();
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
     }
   };
+
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
   }
 
   return (
-    <VoiceClientProvider voiceClient={voiceClientRef.current!}>
+    <VoiceClientProvider voiceClient={voiceClient!}>
       <AppProvider>
         <TooltipProvider>
           <main>
