@@ -1,4 +1,3 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -53,6 +52,11 @@ export default function Home() {
 
   useEffect(() => {
     console.log("Voice client:", voiceClient);
+    if (!voiceClient) {
+      setError("Voice client is not available. Please check VoiceClientProvider setup.");
+    } else {
+      setError(null);
+    }
   }, [voiceClient]);
 
   const handleBotTranscript = useCallback((data: string) => {
@@ -76,15 +80,13 @@ export default function Home() {
       console.log("Setting up voice client listeners");
       voiceClient.on('botTranscript', handleBotTranscript);
       voiceClient.on('error', handleError);
-    }
 
-    return () => {
-      if (voiceClient) {
+      return () => {
         console.log("Removing voice client listeners");
         voiceClient.off('botTranscript', handleBotTranscript);
         voiceClient.off('error', handleError);
-      }
-    };
+      };
+    }
   }, [voiceClient, handleBotTranscript, handleError]);
 
   const handleUserInput = async (input: string) => {
@@ -106,7 +108,7 @@ export default function Home() {
       }
     } else {
       console.error("Voice client is not available");
-      setError("Voice client is not available");
+      setError("Voice client is not available. Cannot send message.");
     }
   };
 
@@ -115,7 +117,13 @@ export default function Home() {
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div>
+        <h2>Error</h2>
+        <p>{error}</p>
+        <p>Please check the console for more details and ensure that VoiceClientProvider is properly set up.</p>
+      </div>
+    );
   }
 
   return (
@@ -135,7 +143,7 @@ export default function Home() {
                 placeholder="Type your response here and press Enter"
               />
             ) : (
-              <div>Loading voice client...</div>
+              <div>Voice client is not available. Please check the setup.</div>
             )}
           </div>
         </main>
