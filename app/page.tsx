@@ -148,14 +148,9 @@ export default function Home() {
     console.log("Sending message:", message);
 
     // Send message to voice client
-    const response = await voiceClientRef.current.sendMessage(message);
+    await voiceClientRef.current.sendMessage(message);
 
-    console.log("Received response:", response);
-
-    // Handle the response
-    if (response && response.type === 'error') {
-      throw new Error(response.data.error);
-    }
+    console.log("Message sent successfully");
 
     // For now, we'll use a placeholder. In a real application, you'd process the actual response.
     const placeholderResponse = "I've received your message. [Placeholder for AI response]";
@@ -179,9 +174,10 @@ export default function Home() {
 // Add this useEffect to set up an error listener
 useEffect(() => {
   if (voiceClientRef.current) {
-    const errorHandler = (error) => {
+    const errorHandler = (error: any) => {
       console.error("VoiceClient error:", error);
-      setError(`VoiceClient error: ${error.message}`);
+      setError(`VoiceClient error: ${error.message || 'Unknown error occurred'}`);
+      setIsLoading(false); // Ensure loading state is reset on error
     };
 
     voiceClientRef.current.on('error', errorHandler);
