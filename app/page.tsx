@@ -1,17 +1,22 @@
 /* eslint-disable simple-import-sort/imports */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
-import { VoiceMessage } from "realtime-ai";
+import { VoiceMessage, LLMHelper, VADHelper } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
 import StoryVisualizer from "@/components/StoryVisualizer";
 import App from "@/components/App";
 import { DailyVoiceClient } from "realtime-ai-daily";
+import {
+  BOT_READY_TIMEOUT,
+  defaultConfig,
+  defaultServices,
+} from "@/rtvi.config";
 
 interface Message {
   role: string;
@@ -45,8 +50,8 @@ const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt })
 };
 
 export default function Home() {
-  const [dailyVoiceClient, setDailyVoiceClient] = useState<DailyVoiceClient | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const voiceClientRef = useRef<DailyVoiceClient | null>(null);
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
@@ -55,48 +60,62 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!dailyVoiceClient) {
-      const voiceClient = new DailyVoiceClient({
-        baseUrl: "/api",
-        services: {
-          llm: "together",
-          tts: "cartesia",
-        },
-        config: [
-          {
-            service: "tts",
-            options: [
-              { name: "voice", value: "79a125e8-cd45-4c13-8a67-188112f4dd22" },
-            ],
-          },
-          {
-            service: "llm",
-            options: [
-              {
-                name: "model",
-                value: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-              },
-              {
-                name: "initial_messages",
-                value: [
-                  {
-                    role: "system",
-                    content:
-                      "You are a assistant called ExampleBot. You can ask me anything. Keep responses brief and legible.",
-                  },
-                ],
-              },
-              { name: "run_on_config", value: true },
-            ],
-          },
-        ],
-      });
-      setDailyVoiceClient(voiceClient);
+    if (!showSplash || voiceClientRef.current) {
+      return;
     }
-  }, [dailyVoiceClient]);
+
+    const voiceClient = new DailyVoiceClient({
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
+      services: defaultServices,
+      config: [
+        ...defaultConfig,
+        {
+          service: "vad",
+          options: [
+            { name: "params", value: { stop_secs: 1 } }
+          ]
+        },
+        {
+          service: "tts",
+          options: [
+            { name: "voice", value: "79a125e8-cd45-4c13-8a67-188112f4dd22" },
+          ],
+        },
+        {
+          service: "llm",
+          options: [
+            {
+              name: "model",
+              value: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+            },
+            {
+              name: "initial_messages",
+              value: [
+                {
+                  role: "system",
+                  content:
+                    "You are a assistant called ExampleBot. You can ask me anything. Keep responses brief and legible.",
+                },
+              ],
+            },
+            { name: "run_on_config", value: true },
+          ],
+        },
+      ],
+      timeout: BOT_READY_TIMEOUT,
+    });
+
+    const llmHelper = new LLMHelper({});
+    voiceClient.registerHelper("llm", llmHelper);
+
+    const vadHelper = new VADHelper({});
+    voiceClient.registerHelper("vad", vadHelper);
+
+    voiceClientRef.current = voiceClient;
+  }, [showSplash]);
 
   const handleUserInput = useCallback(async (input: string) => {
-    if (!dailyVoiceClient) return;
+    if (!voiceClientRef.current) return;
 
     setIsLoading(true);
     try {
@@ -113,7 +132,7 @@ export default function Home() {
       };
 
       // Send message to voice client
-      await dailyVoiceClient.sendMessage(message);
+      await voiceClientRef.current.sendMessage(message);
 
       // Since sendMessage doesn't return a response, we'll need to handle the AI's response differently
       // This might involve setting up an event listener or using a callback function
@@ -134,7 +153,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }, [dailyVoiceClient]);
+  }, [voiceClientRef]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
@@ -155,7 +174,7 @@ export default function Home() {
   }
 
   return (
-    <VoiceClientProvider voiceClient={dailyVoiceClient!}>
+    <VoiceClientProvider voiceClient={voiceClientRef.current!}>
       <AppProvider>
         <TooltipProvider>
           <main>
@@ -165,7 +184,7 @@ export default function Home() {
               <StoryVisualizer storyText={storyText} />
               <ConversationDisplay conversation={conversation} />
               <DalleImageGenerator imagePrompt={imagePrompt} />
-              {dailyVoiceClient ? (
+              {voiceClientRef.current ? (
                 <input
                   type="text"
                   value={inputValue}
