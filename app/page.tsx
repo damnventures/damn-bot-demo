@@ -1,5 +1,4 @@
 /* eslint-disable simple-import-sort/imports */
-
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
@@ -37,9 +36,9 @@ export default function Home() {
     voiceClientRef.current = voiceClient;
 
     // Add message handler for storytelling
-    voiceClient.on("message", (message) => {
-      if (typeof message === "string") {
-        setStoryText((prevStory) => prevStory + message);
+    voiceClient.on("llmJsonCompletion", (data: any) => {
+      if (typeof data.content === "string") {
+        setStoryText((prevStory) => prevStory + data.content);
       }
     });
   }, [showSplash]);
