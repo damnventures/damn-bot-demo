@@ -1,9 +1,6 @@
-/* eslint-disable simple-import-sort/imports */
-"use client";
 import { useEffect, useRef, useState } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { LLMHelper } from "realtime-ai";
 import { DailyVoiceClient } from "realtime-ai-daily";
 import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
 import App from "@/components/App";
@@ -22,7 +19,6 @@ interface Message {
   content: string;
 }
 
-// New component for text conversation display
 const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversation }) => (
   <div className="conversation-display">
     {conversation.map((message, index) => (
@@ -33,27 +29,12 @@ const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversati
   </div>
 );
 
-// New component for DALL-E image generation
 const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt }) => {
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
     if (imagePrompt) {
-      // Here you would typically call your DALL-E API
-      // For this example, we'll just use a placeholder
       setImageUrl(`https://via.placeholder.com/300x200?text=${encodeURIComponent(imagePrompt)}`);
-
-      // When integrating with a real image generation API, you'd do something like this:
-      // const generateImage = async () => {
-      //   const response = await fetch('/api/generate-image', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({ prompt: imagePrompt }),
-      //   });
-      //   const data = await response.json();
-      //   setImageUrl(data.imageUrl);
-      // };
-      // generateImage();
     }
   }, [imagePrompt]);
 
@@ -64,13 +45,12 @@ const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt })
   ) : null;
 };
 
-const [isBotStarted, setIsBotStarted] = useState(false);
-
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
+  const [isBotStarted, setIsBotStarted] = useState(false);
   const voiceClientRef = useRef<DailyVoiceClient | null>(null);
 
   useEffect(() => {
@@ -91,7 +71,6 @@ export default function Home() {
           setStoryText((prevStory) => prevStory + data);
           setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-          // Extract image prompt
           const match = data.match(/<([^>]+)>/);
           if (match) {
             setImagePrompt(match[1]);
@@ -105,7 +84,6 @@ export default function Home() {
               setStoryText((prevStory) => prevStory + content);
               setConversation(prev => [...prev, { role: 'assistant', content }]);
 
-              // Extract image prompt
               const match = content.match(/<([^>]+)>/);
               if (match) {
                 setImagePrompt(match[1]);
@@ -120,11 +98,6 @@ export default function Home() {
     });
 
     voiceClientRef.current = voiceClient;
-
-    // Remove the auto-start
-    // voiceClient.start().catch((e) => {
-    //   console.error("Failed to start voice client:", e);
-    // });
   }, [showSplash]);
 
   const handleUserInput = async (input: string) => {
@@ -132,10 +105,8 @@ export default function Home() {
 
     if (voiceClientRef.current) {
       try {
-        // Disconnect the current session
         await voiceClientRef.current.disconnect();
 
-        // Update the config with the user's input
         const updatedConfig = [...defaultConfig];
         const llmConfig = updatedConfig.find(c => c.service === 'llm');
         if (llmConfig && llmConfig.options) {
@@ -145,7 +116,6 @@ export default function Home() {
           }
         }
 
-        // Reinitialize the client with the updated config
         const newVoiceClient = new DailyVoiceClient({
           baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
           services: defaultServices,
@@ -159,7 +129,6 @@ export default function Home() {
               setStoryText((prevStory) => prevStory + data);
               setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-              // Extract image prompt
               const match = data.match(/<([^>]+)>/);
               if (match) {
                 setImagePrompt(match[1]);
@@ -167,7 +136,6 @@ export default function Home() {
             },
             onGenericMessage: (data: unknown) => {
               console.log("Generic message received:", data);
-              // You might want to handle different types of messages here
             },
             onError: (message: any) => {
               console.error("Error:", message);
@@ -177,13 +145,13 @@ export default function Home() {
 
         voiceClientRef.current = newVoiceClient;
 
-        // Start the new session
         await newVoiceClient.start();
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
     }
   };
+
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
   }
