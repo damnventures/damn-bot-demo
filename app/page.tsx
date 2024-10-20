@@ -1,10 +1,11 @@
 /* eslint-disable simple-import-sort/imports */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
+import { VoiceClientAudio, VoiceClientProvider, useVoiceClient, useVoiceClientEvent } from "realtime-ai-react";
+import { VoiceEvent } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
@@ -49,42 +50,35 @@ export default function Home() {
   const [imagePrompt, setImagePrompt] = useState("");
   const voiceClient = useVoiceClient();
 
-  useEffect(() => {
-    if (voiceClient) {
-      voiceClient.on('transcript', (data: string) => {
-        setStoryText((prevStory) => prevStory + data);
-        setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+  const handleTranscript = useCallback((message: any) => {
+    const data = message.data as string;
+    setStoryText((prevStory) => prevStory + data);
+    setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-        const match = data.match(/<([^>]+)>/);
+    const match = data.match(/<([^>]+)>/);
+    if (match) {
+      setImagePrompt(match[1]);
+    }
+  }, []);
+
+  const handleGenericMessage = useCallback((message: any) => {
+    console.log("Generic message received:", message);
+    if (typeof message.data === 'object' && message.data !== null && 'content' in message.data) {
+      const content = message.data.content;
+      if (typeof content === 'string') {
+        setStoryText((prevStory) => prevStory + content);
+        setConversation(prev => [...prev, { role: 'assistant', content }]);
+
+        const match = content.match(/<([^>]+)>/);
         if (match) {
           setImagePrompt(match[1]);
         }
-      });
-
-      voiceClient.on('genericMessage', (data: unknown) => {
-        console.log("Generic message received:", data);
-        if (typeof data === 'object' && data !== null && 'content' in data) {
-          const content = (data as any).content;
-          if (typeof content === 'string') {
-            setStoryText((prevStory) => prevStory + content);
-            setConversation(prev => [...prev, { role: 'assistant', content }]);
-
-            const match = content.match(/<([^>]+)>/);
-            if (match) {
-              setImagePrompt(match[1]);
-            }
-          }
-        }
-      });
-    }
-
-    return () => {
-      if (voiceClient) {
-        voiceClient.off('transcript');
-        voiceClient.off('genericMessage');
       }
-    };
-  }, [voiceClient]);
+    }
+  }, []);
+
+  useVoiceClientEvent(VoiceEvent.BotTranscript, handleTranscript);
+  useVoiceClientEvent(VoiceEvent.GenericMessage, handleGenericMessage);
 
   const handleUserInput = async (input: string) => {
     if (voiceClient) {
@@ -108,12 +102,13 @@ export default function Home() {
               <StoryVisualizer storyText={storyText} />
               <ConversationDisplay conversation={conversation} />
               <DalleImageGenerator imagePrompt={imagePrompt} />
-              <input
-                type="text"
-                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
-                placeholder="Type your response here and press Enter"
-                disabled={!voiceClient}
-              />
+              {voiceClient && (
+                <input
+                  type="text"
+                  onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                  placeholder="Type your response here and press Enter"
+                />
+              )}
             </div>
           </main>
           <aside id="tray" />
@@ -122,4 +117,5 @@ export default function Home() {
       <VoiceClientAudio />
     </VoiceClientProvider>
   );
+}
 }
