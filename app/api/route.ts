@@ -1,3 +1,5 @@
+/* eslint-disable simple-import-sort/imports */
+
 import { defaultBotProfile, defaultMaxDuration, defaultLLMPrompt } from "./../../rtvi.config";
 
 export async function POST(request: Request) {
