@@ -1,22 +1,15 @@
 /* eslint-disable simple-import-sort/imports */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { LLMHelper } from "realtime-ai";
-import { DailyVoiceClient } from "realtime-ai-daily";
-import { VoiceClientAudio, VoiceClientProvider } from "realtime-ai-react";
-import App from "@/components/App";
+import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
 import StoryVisualizer from "@/components/StoryVisualizer";
-import {
-  BOT_READY_TIMEOUT,
-  defaultConfig,
-  defaultServices,
-} from "@/rtvi.config";
+import App from "@/components/App";
 
 interface Message {
   role: string;
@@ -54,47 +47,38 @@ export default function Home() {
   const [storyText, setStoryText] = useState("");
   const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
-  const [isBotStarted, setIsBotStarted] = useState(false);
-  const voiceClientRef = useRef<DailyVoiceClient | null>(null);
+  const voiceClient = useVoiceClient();
 
   useEffect(() => {
-    if (!showSplash || voiceClientRef.current) {
-      return;
+    if (voiceClient) {
+      voiceClient.on('botTranscript', (data: string) => {
+        setStoryText((prevStory) => prevStory + data);
+        setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+
+        const match = data.match(/<([^>]+)>/);
+        if (match) {
+          setImagePrompt(match[1]);
+        }
+      });
+
+      voiceClient.on('error', (message: any) => {
+        console.error("Error:", message);
+      });
     }
-    const voiceClient = new DailyVoiceClient({
-      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-      services: defaultServices,
-      config: defaultConfig,
-      timeout: BOT_READY_TIMEOUT,
-      callbacks: {
-        onBotReady: () => {
-          console.log("Bot is ready!");
-          setIsBotStarted(true);
-        },
-        onBotTranscript: (data: string) => {
-          setStoryText((prevStory) => prevStory + data);
-          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-          const match = data.match(/<([^>]+)>/);
-          if (match) {
-            setImagePrompt(match[1]);
-          }
-        },
-        onError: (message: any) => {
-          console.error("Error:", message);
-        },
-      },
-    });
-
-    voiceClientRef.current = voiceClient;
-  }, [showSplash]);
+    return () => {
+      if (voiceClient) {
+        voiceClient.off('botTranscript');
+        voiceClient.off('error');
+      }
+    };
+  }, [voiceClient]);
 
   const handleUserInput = async (input: string) => {
-    setConversation(prev => [...prev, { role: 'user', content: input }]);
-
-    if (voiceClientRef.current) {
+    if (voiceClient) {
+      setConversation(prev => [...prev, { role: 'user', content: input }]);
       try {
-        await voiceClientRef.current.sendTextMessage(input);
+        await voiceClient.sendMessage(input);
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
@@ -106,29 +90,26 @@ export default function Home() {
   }
 
   return (
-    <VoiceClientProvider voiceClient={voiceClientRef.current!}>
-      <AppProvider>
-        <TooltipProvider>
-          <main>
-            <Header />
-            <div id="app">
-              <App />
-              <StoryVisualizer storyText={storyText} />
-              <ConversationDisplay conversation={conversation} />
-              <DalleImageGenerator imagePrompt={imagePrompt} />
-              {isBotStarted && (
-                <input
-                  type="text"
-                  onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
-                  placeholder="Type your response here and press Enter"
-                />
-              )}
-            </div>
-          </main>
-          <aside id="tray" />
-        </TooltipProvider>
-      </AppProvider>
-      <VoiceClientAudio />
-    </VoiceClientProvider>
+    <AppProvider>
+      <TooltipProvider>
+        <main>
+          <Header />
+          <div id="app">
+            <App />
+            <StoryVisualizer storyText={storyText} />
+            <ConversationDisplay conversation={conversation} />
+            <DalleImageGenerator imagePrompt={imagePrompt} />
+            {voiceClient && (
+              <input
+                type="text"
+                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                placeholder="Type your response here and press Enter"
+              />
+            )}
+          </div>
+        </main>
+        <aside id="tray" />
+      </TooltipProvider>
+    </AppProvider>
   );
 }
