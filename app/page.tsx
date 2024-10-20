@@ -24,8 +24,6 @@ interface Message {
 
 const [isBotStarted, setIsBotStarted] = useState(false);
 
-
-
 // New component for text conversation display
 const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversation }) => (
   <div className="conversation-display">
@@ -76,63 +74,56 @@ export default function Home() {
   const voiceClientRef = useRef<DailyVoiceClient | null>(null);
 
   useEffect(() => {
-    if (showSplash) {
-      return <Splash handleReady={() => {
-        setShowSplash(false);
-        initializeAndStartBot();
-      }} />;
+    if (!showSplash || voiceClientRef.current) {
+      return;
     }
-    const initializeAndStartBot = async () => {
-      const voiceClient = new DailyVoiceClient({
-        baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-        services: defaultServices,
-        config: defaultConfig,
-        timeout: BOT_READY_TIMEOUT,
-        callbacks: {
-          onBotReady: () => {
-            console.log("Bot is ready!");
-            setIsBotStarted(true);
-          },
-          onBotTranscript: (data: string) => {
-            setStoryText((prevStory) => prevStory + data);
-            setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+    const voiceClient = new DailyVoiceClient({
+      baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
+      services: defaultServices,
+      config: defaultConfig,
+      timeout: BOT_READY_TIMEOUT,
+      callbacks: {
+        onBotReady: () => {
+          console.log("Bot is ready!");
+        },
+        onBotTranscript: (data: string) => {
+          setStoryText((prevStory) => prevStory + data);
+          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-            // Extract image prompt
-            const match = data.match(/<([^>]+)>/);
-            if (match) {
-              setImagePrompt(match[1]);
-            }
-          },
-          onGenericMessage: (data: unknown) => {
-            console.log("Generic message received:", data);
-            if (typeof data === 'object' && data !== null && 'content' in data) {
-              const content = (data as any).content;
-              if (typeof content === 'string') {
-                setStoryText((prevStory) => prevStory + content);
-                setConversation(prev => [...prev, { role: 'assistant', content }]);
+          // Extract image prompt
+          const match = data.match(/<([^>]+)>/);
+          if (match) {
+            setImagePrompt(match[1]);
+          }
+        },
+        onGenericMessage: (data: unknown) => {
+          console.log("Generic message received:", data);
+          if (typeof data === 'object' && data !== null && 'content' in data) {
+            const content = (data as any).content;
+            if (typeof content === 'string') {
+              setStoryText((prevStory) => prevStory + content);
+              setConversation(prev => [...prev, { role: 'assistant', content }]);
 
-                // Extract image prompt
-                const match = content.match(/<([^>]+)>/);
-                if (match) {
-                  setImagePrompt(match[1]);
-                }
+              // Extract image prompt
+              const match = content.match(/<([^>]+)>/);
+              if (match) {
+                setImagePrompt(match[1]);
               }
             }
-          },
-          onError: (message: any) => {
-            console.error("Error:", message);
-          },
+          }
         },
-      });
+        onError: (message: any) => {
+          console.error("Error:", message);
+        },
+      },
+    });
 
-      voiceClientRef.current = voiceClient;
+    voiceClientRef.current = voiceClient;
 
-      try {
-        await voiceClient.start();
-      } catch (e) {
-        console.error("Failed to start voice client:", e);
-      }
-    };
+    // Remove the auto-start
+    // voiceClient.start().catch((e) => {
+    //   console.error("Failed to start voice client:", e);
+    // });
   }, [showSplash]);
 
   const handleUserInput = async (input: string) => {
@@ -140,61 +131,15 @@ export default function Home() {
 
   if (voiceClientRef.current) {
     try {
-      await voiceClientRef.current.disconnect();
-
-      const updatedConfig = [...defaultConfig];
-      const llmConfig = updatedConfig.find(c => c.service === 'llm');
-      if (llmConfig && llmConfig.options) {
-        const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
-        if (initialMessages && Array.isArray(initialMessages.value)) {
-          initialMessages.value.push({ role: 'user', content: input });
-        }
+      const llmHelper = voiceClientRef.current.getHelper('llm') as LLMHelper;
+      if (llmHelper) {
+        await llmHelper.sendMessage({
+          role: 'user',
+          content: input
+        });
+      } else {
+        console.error("LLMHelper not found");
       }
-
-      const newVoiceClient = new DailyVoiceClient({
-        baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-        services: defaultServices,
-        config: updatedConfig,
-        timeout: BOT_READY_TIMEOUT,
-        callbacks: {
-          onBotReady: () => {
-            console.log("Bot is ready!");
-          },
-          onBotTranscript: (data: string) => {
-            setStoryText((prevStory) => prevStory + data);
-            setConversation(prev => [...prev, { role: 'assistant', content: data }]);
-
-            // Extract image prompt
-            const match = data.match(/<([^>]+)>/);
-            if (match) {
-              setImagePrompt(match[1]);
-            }
-          },
-          onGenericMessage: (data: unknown) => {
-            console.log("Generic message received:", data);
-            if (typeof data === 'object' && data !== null && 'content' in data) {
-              const content = (data as any).content;
-              if (typeof content === 'string') {
-                setStoryText((prevStory) => prevStory + content);
-                setConversation(prev => [...prev, { role: 'assistant', content }]);
-
-                // Extract image prompt
-                const match = content.match(/<([^>]+)>/);
-                if (match) {
-                  setImagePrompt(match[1]);
-                }
-              }
-            }
-          },
-          onError: (message: any) => {
-            console.error("Error:", message);
-          },
-        },
-      });
-
-      voiceClientRef.current = newVoiceClient;
-
-      await newVoiceClient.start();
     } catch (error) {
       console.error("Failed to send user input:", error);
     }
