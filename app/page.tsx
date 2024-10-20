@@ -1,7 +1,6 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
@@ -49,30 +48,33 @@ export default function Home() {
   const [imagePrompt, setImagePrompt] = useState("");
   const voiceClient = useVoiceClient();
 
+  const handleBotTranscript = useCallback((data: string) => {
+    setStoryText((prevStory) => prevStory + data);
+    setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+
+    const match = data.match(/<([^>]+)>/);
+    if (match) {
+      setImagePrompt(match[1]);
+    }
+  }, []);
+
+  const handleError = useCallback((message: any) => {
+    console.error("Error:", message);
+  }, []);
+
   useEffect(() => {
     if (voiceClient) {
-      voiceClient.on('botTranscript', (data: string) => {
-        setStoryText((prevStory) => prevStory + data);
-        setConversation(prev => [...prev, { role: 'assistant', content: data }]);
-
-        const match = data.match(/<([^>]+)>/);
-        if (match) {
-          setImagePrompt(match[1]);
-        }
-      });
-
-      voiceClient.on('error', (message: any) => {
-        console.error("Error:", message);
-      });
+      voiceClient.on('botTranscript', handleBotTranscript);
+      voiceClient.on('error', handleError);
     }
 
     return () => {
       if (voiceClient) {
-        voiceClient.off('botTranscript');
-        voiceClient.off('error');
+        voiceClient.off('botTranscript', handleBotTranscript);
+        voiceClient.off('error', handleError);
       }
     };
-  }, [voiceClient]);
+  }, [voiceClient, handleBotTranscript, handleError]);
 
   const handleUserInput = async (input: string) => {
     if (voiceClient) {
