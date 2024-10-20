@@ -61,8 +61,8 @@ export default function Home() {
     }
   }, []);
 
-  const handleGenericMessage = useCallback((message: any) => {
-    console.log("Generic message received:", message);
+  const handleBotMessage = useCallback((message: any) => {
+    console.log("Bot message received:", message);
     if (typeof message.data === 'object' && message.data !== null && 'content' in message.data) {
       const content = message.data.content;
       if (typeof content === 'string') {
@@ -78,7 +78,7 @@ export default function Home() {
   }, []);
 
   useVoiceClientEvent(VoiceEvent.BotTranscript, handleTranscript);
-  useVoiceClientEvent(VoiceEvent.GenericMessage, handleGenericMessage);
+  useVoiceClientEvent(VoiceEvent.BotMessage, handleBotMessage);
 
   const handleUserInput = async (input: string) => {
     if (voiceClient) {
