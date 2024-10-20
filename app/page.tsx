@@ -113,42 +113,62 @@ export default function Home() {
   }, [showSplash]);
 
   const handleUserInput = async (input: string) => {
-  setConversation(prev => [...prev, { role: 'user', content: input }]);
+    setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-  if (voiceClientRef.current) {
-    try {
-      // Disconnect the current session
-      await voiceClientRef.current.disconnect();
+    if (voiceClientRef.current) {
+      try {
+        // Disconnect the current session
+        await voiceClientRef.current.disconnect();
 
-      // Update the config with the user's input
-      const updatedConfig = [...defaultConfig];
-      const llmConfig = updatedConfig.find(c => c.service === 'llm');
-      if (llmConfig && llmConfig.options) {
-        const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
-        if (initialMessages && Array.isArray(initialMessages.value)) {
-          initialMessages.value.push({ role: 'user', content: input });
+        // Update the config with the user's input
+        const updatedConfig = [...defaultConfig];
+        const llmConfig = updatedConfig.find(c => c.service === 'llm');
+        if (llmConfig && llmConfig.options) {
+          const initialMessages = llmConfig.options.find(o => o.name === 'initial_messages');
+          if (initialMessages && Array.isArray(initialMessages.value)) {
+            initialMessages.value.push({ role: 'user', content: input });
+          }
         }
+
+        // Reinitialize the client with the updated config
+        const newVoiceClient = new DailyVoiceClient({
+          baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
+          services: defaultServices,
+          config: updatedConfig,
+          timeout: BOT_READY_TIMEOUT,
+          callbacks: {
+            onBotReady: () => {
+              console.log("Bot is ready!");
+            },
+            onBotTranscript: (data: string) => {
+              setStoryText((prevStory) => prevStory + data);
+              setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+
+              // Extract image prompt
+              const match = data.match(/<([^>]+)>/);
+              if (match) {
+                setImagePrompt(match[1]);
+              }
+            },
+            onGenericMessage: (data: unknown) => {
+              console.log("Generic message received:", data);
+              // You might want to handle different types of messages here
+            },
+            onError: (message: any) => {
+              console.error("Error:", message);
+            },
+          },
+        });
+
+        voiceClientRef.current = newVoiceClient;
+
+        // Start the new session
+        await newVoiceClient.start();
+      } catch (error) {
+        console.error("Failed to send user input:", error);
       }
-
-      // Reinitialize the client with the updated config
-      const newVoiceClient = new DailyVoiceClient({
-        baseUrl: process.env.NEXT_PUBLIC_BASE_URL || "/api",
-        services: defaultServices,
-        config: updatedConfig,
-        timeout: BOT_READY_TIMEOUT,
-        callbacks: voiceClientRef.current.callbacks,
-      });
-
-      voiceClientRef.current = newVoiceClient;
-
-      // Start the new session
-      await newVoiceClient.start();
-    } catch (error) {
-      console.error("Failed to send user input:", error);
     }
-  }
-};
-
+  };
   if (showSplash) {
     return <Splash handleReady={() => setShowSplash(false)} />;
   }
