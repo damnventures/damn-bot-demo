@@ -102,7 +102,16 @@ export default function Home() {
 
   const handleUserInput = (input: string) => {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
-    voiceClientRef.current?.sendText(input);
+
+    if (voiceClientRef.current) {
+      voiceClientRef.current.sendAction({
+        service: 'llm',
+        action: 'text',
+        arguments: [
+          { name: 'text', value: input }
+        ]
+      });
+    }
   };
 
   if (showSplash) {
