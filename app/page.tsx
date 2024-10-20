@@ -135,61 +135,70 @@ export default function Home() {
   }, [showSplash]);
 
   const handleUserInput = useCallback(async (input: string) => {
-  if (!voiceClientRef.current) return;
+    if (!voiceClientRef.current) return;
 
-  setIsLoading(true);
-  try {
-    // Add user message to conversation
-    setConversation(prev => [...prev, { role: 'user', content: input }]);
+    setIsLoading(true);
+    try {
+      // Add user message to conversation
+      setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-    // Create a CustomVoiceMessage object
-    const message = new CustomVoiceMessage(input);
+      console.log("Sending action:", JSON.stringify({
+        service: "llm",
+        action: "generate",
+        arguments: [{ name: "text", value: input }]
+      }, null, 2));
 
-    console.log("Sending message:", JSON.stringify(message, null, 2));
+      // Send action to voice client
+      const response = await voiceClientRef.current.action({
+        service: "llm",
+        action: "generate",
+        arguments: [{ name: "text", value: input }]
+      });
 
-    // Send message to voice client
-    const response = await voiceClientRef.current.sendMessage(message);
+      console.log("Action sent successfully. Server response:", response);
 
-    console.log("Message sent successfully. Server response:", response);
+      if (response && response.type === 'error-response') {
+        throw new Error(response.data.error);
+      }
 
-    // For now, we'll use a placeholder. In a real application, you'd process the actual response.
-    const placeholderResponse = "I've received your message. [Placeholder for AI response]";
+      // Process the actual response
+      const aiResponse = response.data.content || "No response from AI";
 
-    // Add AI response to conversation
-    setConversation(prev => [...prev, { role: 'assistant', content: placeholderResponse }]);
+      // Add AI response to conversation
+      setConversation(prev => [...prev, { role: 'assistant', content: aiResponse }]);
 
-    // Update story text
-    setStoryText(prev => prev + " " + placeholderResponse);
+      // Update story text
+      setStoryText(prev => prev + " " + aiResponse);
 
-    // Clear input field
-    setInputValue("");
-  } catch (error: unknown) {
-    console.error("Error sending message:", error);
-    if (error instanceof Error) {
-      setError(`Failed to send message: ${error.message}`);
-    } else if (typeof error === 'object' && error !== null) {
-      setError(`Failed to send message: ${JSON.stringify(error, null, 2)}`);
-    } else {
-      setError('Failed to send message: An unknown error occurred');
+      // Clear input field
+      setInputValue("");
+    } catch (error: unknown) {
+      console.error("Error sending action:", error);
+      if (error instanceof Error) {
+        setError(`Failed to send action: ${error.message}`);
+      } else if (typeof error === 'object' && error !== null) {
+        setError(`Failed to send action: ${JSON.stringify(error, null, 2)}`);
+      } else {
+        setError('Failed to send action: An unknown error occurred');
+      }
+    } finally {
+      setIsLoading(false);
     }
-  } finally {
-    setIsLoading(false);
-  }
-}, [voiceClientRef]);
+  }, [voiceClientRef]);
 
 // Add this useEffect to set up an error listener
 useEffect(() => {
   if (voiceClientRef.current) {
     const errorHandler = (error: unknown) => {
       console.error("VoiceClient error:", error);
-      if (error instanceof Error) {
+      if (typeof error === 'object' && error !== null && 'data' in error) {
+        setError(`VoiceClient error: ${JSON.stringify(error.data, null, 2)}`);
+      } else if (error instanceof Error) {
         setError(`VoiceClient error: ${error.message}`);
-      } else if (typeof error === 'object' && error !== null) {
-        setError(`VoiceClient error: ${JSON.stringify(error, null, 2)}`);
       } else {
         setError('VoiceClient error: An unknown error occurred');
       }
-      setIsLoading(false); // Ensure loading state is reset on error
+      setIsLoading(false);
     };
 
     voiceClientRef.current.on('error', errorHandler);
