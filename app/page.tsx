@@ -119,21 +119,19 @@ export default function Home() {
       // Add user message to conversation
       setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-      // Create a VoiceMessage object
+      // Create a simplified VoiceMessage object
       const message: VoiceMessage = {
         id: Date.now().toString(),
         type: 'text',
         data: input,
-        label: 'User Input',
-        serialize: () => JSON.stringify({ type: 'text', data: input })
+        label: 'User Input'
       };
 
       // Send message to voice client
       await voiceClientRef.current.sendMessage(message);
 
-      // Since sendMessage doesn't return a response, we'll need to handle the AI's response differently
-      // This might involve setting up an event listener or using a callback function
-      // For now, we'll just add a placeholder response
+      // Handle the response
+      // For now, we'll use a placeholder. In a real application, you'd listen for a response from the voice client.
       const placeholderResponse = "I've received your message. [Placeholder for AI response]";
 
       // Add AI response to conversation
