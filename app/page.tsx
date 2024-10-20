@@ -84,18 +84,17 @@ export default function Home() {
         onBotReady: () => {
           console.log("Bot is ready!");
         },
-        onBotTranscript: (data: string) => {
-          setStoryText((prevStory) => prevStory + data);
-          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+        onLlmJsonCompletion: (data: any) => {
+          if (typeof data.content === "string") {
+            setStoryText((prevStory) => prevStory + data.content);
+            setConversation(prev => [...prev, { role: 'assistant', content: data.content }]);
 
-          // Extract image prompt
-          const match = data.match(/<([^>]+)>/);
-          if (match) {
-            setImagePrompt(match[1]);
+            // Extract image prompt
+            const match = data.content.match(/<([^>]+)>/);
+            if (match) {
+              setImagePrompt(match[1]);
+            }
           }
-        },
-        onError: (error: any) => {
-          console.error("Bot error:", error);
         },
       },
     });
@@ -108,21 +107,13 @@ export default function Home() {
     });
   }, [showSplash]);
 
-  const handleUserInput = async (input: string) => {
+  const handleUserInput = (input: string) => {
     setConversation(prev => [...prev, { role: 'user', content: input }]);
 
     if (voiceClientRef.current) {
-      try {
-        // For now, we'll use the LLMHelper to send text input
-        const llmHelper = voiceClientRef.current.getHelper('llm') as LLMHelper;
-        if (llmHelper) {
-          await llmHelper.sendTextMessage(input);
-        } else {
-          console.error("LLMHelper not found");
-        }
-      } catch (error) {
+      voiceClientRef.current.start(input).catch((error) => {
         console.error("Failed to send user input:", error);
-      }
+      });
     }
   };
 
