@@ -1,6 +1,7 @@
 /* eslint-disable simple-import-sort/imports */
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { LLMHelper } from "realtime-ai";
 import { DailyVoiceClient } from "realtime-ai-daily";
@@ -16,8 +17,13 @@ import {
   defaultServices,
 } from "@/rtvi.config";
 
+interface Message {
+  role: string;
+  content: string;
+}
+
 // New component for text conversation display
-const ConversationDisplay = ({ conversation }) => (
+const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversation }) => (
   <div className="conversation-display">
     {conversation.map((message, index) => (
       <div key={index} className={`message ${message.role}`}>
@@ -28,7 +34,7 @@ const ConversationDisplay = ({ conversation }) => (
 );
 
 // New component for DALL-E image generation
-const DalleImageGenerator = ({ imagePrompt }) => {
+const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt }) => {
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
@@ -36,16 +42,32 @@ const DalleImageGenerator = ({ imagePrompt }) => {
       // Here you would typically call your DALL-E API
       // For this example, we'll just use a placeholder
       setImageUrl(`https://via.placeholder.com/300x200?text=${encodeURIComponent(imagePrompt)}`);
+
+      // When integrating with a real image generation API, you'd do something like this:
+      // const generateImage = async () => {
+      //   const response = await fetch('/api/generate-image', {
+      //     method: 'POST',
+      //     headers: { 'Content-Type': 'application/json' },
+      //     body: JSON.stringify({ prompt: imagePrompt }),
+      //   });
+      //   const data = await response.json();
+      //   setImageUrl(data.imageUrl);
+      // };
+      // generateImage();
     }
   }, [imagePrompt]);
 
-  return imageUrl ? <img src={imageUrl} alt="Generated story scene" /> : null;
+  return imageUrl ? (
+    <div style={{ position: 'relative', width: '300px', height: '200px' }}>
+      <Image src={imageUrl} alt="Generated story scene" layout="fill" objectFit="contain" />
+    </div>
+  ) : null;
 };
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
   const [storyText, setStoryText] = useState("");
-  const [conversation, setConversation] = useState([]);
+  const [conversation, setConversation] = useState<Message[]>([]);
   const [imagePrompt, setImagePrompt] = useState("");
   const voiceClientRef = useRef<DailyVoiceClient | null>(null);
 
