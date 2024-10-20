@@ -33,6 +33,29 @@ const ConversationDisplay: React.FC<{ conversation: Message[] }> = ({ conversati
   </div>
 );
 
+class CustomVoiceMessage implements VoiceMessage {
+  id: string;
+  type: string;
+  data: string;
+  label: string;
+
+  constructor(input: string) {
+    this.id = Date.now().toString();
+    this.type = 'text';
+    this.data = input;
+    this.label = 'User Input';
+  }
+
+  serialize(): string {
+    return JSON.stringify({
+      id: this.id,
+      type: this.type,
+      data: this.data,
+      label: this.label
+    });
+  }
+}
+
 const DalleImageGenerator: React.FC<{ imagePrompt: string }> = ({ imagePrompt }) => {
   const [imageUrl, setImageUrl] = useState("");
 
@@ -112,47 +135,38 @@ export default function Home() {
   }, [showSplash]);
 
   const handleUserInput = useCallback(async (input: string) => {
-    if (!voiceClientRef.current) return;
+  if (!voiceClientRef.current) return;
 
-    setIsLoading(true);
-    try {
-      // Add user message to conversation
-      setConversation(prev => [...prev, { role: 'user', content: input }]);
+  setIsLoading(true);
+  try {
+    // Add user message to conversation
+    setConversation(prev => [...prev, { role: 'user', content: input }]);
 
-      // Create a VoiceMessage object with a serialize method
-      const message: VoiceMessage = {
-        id: Date.now().toString(),
-        type: 'text',
-        data: input,
-        label: 'User Input',
-        serialize: function() {
-          const { serialize, ...rest } = this;
-          return JSON.stringify(rest);
-        }
-      };
+    // Create a CustomVoiceMessage object
+    const message = new CustomVoiceMessage(input);
 
-      // Send message to voice client
-      await voiceClientRef.current.sendMessage(message);
+    // Send message to voice client
+    await voiceClientRef.current.sendMessage(message);
 
-      // Handle the response
-      // For now, we'll use a placeholder. In a real application, you'd listen for a response from the voice client.
-      const placeholderResponse = "I've received your message. [Placeholder for AI response]";
+    // Handle the response
+    // For now, we'll use a placeholder. In a real application, you'd listen for a response from the voice client.
+    const placeholderResponse = "I've received your message. [Placeholder for AI response]";
 
-      // Add AI response to conversation
-      setConversation(prev => [...prev, { role: 'assistant', content: placeholderResponse }]);
+    // Add AI response to conversation
+    setConversation(prev => [...prev, { role: 'assistant', content: placeholderResponse }]);
 
-      // Update story text
-      setStoryText(prev => prev + " " + placeholderResponse);
+    // Update story text
+    setStoryText(prev => prev + " " + placeholderResponse);
 
-      // Clear input field
-      setInputValue("");
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setError("Failed to send message. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [voiceClientRef]);
+    // Clear input field
+    setInputValue("");
+  } catch (error) {
+    console.error("Error sending message:", error);
+    setError("Failed to send message. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+}, [voiceClientRef]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
