@@ -1,4 +1,3 @@
-/* eslint-disable simple-import-sort/imports */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -50,35 +49,26 @@ export default function Home() {
   const [imagePrompt, setImagePrompt] = useState("");
   const voiceClient = useVoiceClient();
 
-  const handleTranscript = useCallback((message: any) => {
-    const data = message.data as string;
-    setStoryText((prevStory) => prevStory + data);
-    setConversation(prev => [...prev, { role: 'assistant', content: data }]);
+  const handleMessage = useCallback((message: any) => {
+    console.log("Message received:", message);
+    const content = typeof message.data === 'string' ? message.data :
+                    (typeof message.data === 'object' && message.data !== null && 'content' in message.data) ?
+                    message.data.content : null;
 
-    const match = data.match(/<([^>]+)>/);
-    if (match) {
-      setImagePrompt(match[1]);
-    }
-  }, []);
+    if (typeof content === 'string') {
+      setStoryText((prevStory) => prevStory + content);
+      setConversation(prev => [...prev, { role: 'assistant', content }]);
 
-  const handleBotMessage = useCallback((message: any) => {
-    console.log("Bot message received:", message);
-    if (typeof message.data === 'object' && message.data !== null && 'content' in message.data) {
-      const content = message.data.content;
-      if (typeof content === 'string') {
-        setStoryText((prevStory) => prevStory + content);
-        setConversation(prev => [...prev, { role: 'assistant', content }]);
-
-        const match = content.match(/<([^>]+)>/);
-        if (match) {
-          setImagePrompt(match[1]);
-        }
+      const match = content.match(/<([^>]+)>/);
+      if (match) {
+        setImagePrompt(match[1]);
       }
     }
   }, []);
 
-  useVoiceClientEvent(VoiceEvent.BotTranscript, handleTranscript);
-  useVoiceClientEvent(VoiceEvent.BotMessage, handleBotMessage);
+  // Use type assertion to ensure we're using valid event types
+  useVoiceClientEvent(VoiceEvent.BotTranscript as keyof typeof VoiceEvent, handleMessage);
+  useVoiceClientEvent(VoiceEvent.LlmResponse as keyof typeof VoiceEvent, handleMessage);
 
   const handleUserInput = async (input: string) => {
     if (voiceClient) {
