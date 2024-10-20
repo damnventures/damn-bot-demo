@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { VoiceClientAudio, VoiceClientProvider, useVoiceClient, useVoiceClientEvent } from "realtime-ai-react";
-import { VoiceEvent } from "realtime-ai";
+import { VoiceEvent, VoiceMessage } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
@@ -50,26 +50,35 @@ export default function Home() {
   const [imagePrompt, setImagePrompt] = useState("");
   const voiceClient = useVoiceClient();
 
-  const handleMessage = useCallback((message: any) => {
-    console.log("Message received:", message);
-    const content = typeof message.data === 'string' ? message.data :
-                    (typeof message.data === 'object' && message.data !== null && 'content' in message.data) ?
-                    message.data.content : null;
+  const handleBotTranscript = useCallback((message: VoiceMessage) => {
+    const data = message.data as string;
+    setStoryText((prevStory) => prevStory + data);
+    setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-    if (typeof content === 'string') {
-      setStoryText((prevStory) => prevStory + content);
-      setConversation(prev => [...prev, { role: 'assistant', content }]);
+    const match = data.match(/<([^>]+)>/);
+    if (match) {
+      setImagePrompt(match[1]);
+    }
+  }, []);
 
-      const match = content.match(/<([^>]+)>/);
-      if (match) {
-        setImagePrompt(match[1]);
+  const handleGenericMessage = useCallback((message: VoiceMessage) => {
+    console.log("Generic message received:", message);
+    if (typeof message.data === 'object' && message.data !== null && 'content' in message.data) {
+      const content = (message.data as any).content;
+      if (typeof content === 'string') {
+        setStoryText((prevStory) => prevStory + content);
+        setConversation(prev => [...prev, { role: 'assistant', content }]);
+
+        const match = content.match(/<([^>]+)>/);
+        if (match) {
+          setImagePrompt(match[1]);
+        }
       }
     }
   }, []);
 
-  // Use type assertion to ensure we're using valid event types
-  useVoiceClientEvent(VoiceEvent.BotTranscript as keyof typeof VoiceEvent, handleMessage);
-  useVoiceClientEvent(VoiceEvent.LlmResponse as keyof typeof VoiceEvent, handleMessage);
+  useVoiceClientEvent(VoiceEvent.BotTranscript, handleBotTranscript);
+  useVoiceClientEvent(VoiceEvent.GenericMessage, handleGenericMessage);
 
   const handleUserInput = async (input: string) => {
     if (voiceClient) {
@@ -83,29 +92,26 @@ export default function Home() {
   }
 
   return (
-    <VoiceClientProvider>
-      <AppProvider>
-        <TooltipProvider>
-          <main>
-            <Header />
-            <div id="app">
-              <App />
-              <StoryVisualizer storyText={storyText} />
-              <ConversationDisplay conversation={conversation} />
-              <DalleImageGenerator imagePrompt={imagePrompt} />
-              {voiceClient && (
-                <input
-                  type="text"
-                  onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
-                  placeholder="Type your response here and press Enter"
-                />
-              )}
-            </div>
-          </main>
-          <aside id="tray" />
-        </TooltipProvider>
-      </AppProvider>
-      <VoiceClientAudio />
-    </VoiceClientProvider>
+    <AppProvider>
+      <TooltipProvider>
+        <main>
+          <Header />
+          <div id="app">
+            <App />
+            <StoryVisualizer storyText={storyText} />
+            <ConversationDisplay conversation={conversation} />
+            <DalleImageGenerator imagePrompt={imagePrompt} />
+            {voiceClient && (
+              <input
+                type="text"
+                onKeyPress={(e) => e.key === 'Enter' && handleUserInput(e.currentTarget.value)}
+                placeholder="Type your response here and press Enter"
+              />
+            )}
+          </div>
+        </main>
+        <aside id="tray" />
+      </TooltipProvider>
+    </AppProvider>
   );
 }
