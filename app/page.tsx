@@ -96,7 +96,19 @@ export default function Home() {
         },
         onGenericMessage: (data: unknown) => {
           console.log("Generic message received:", data);
-          // You might want to handle different types of messages here
+          if (typeof data === 'object' && data !== null && 'content' in data) {
+            const content = (data as any).content;
+            if (typeof content === 'string') {
+              setStoryText((prevStory) => prevStory + content);
+              setConversation(prev => [...prev, { role: 'assistant', content }]);
+
+              // Extract image prompt
+              const match = content.match(/<([^>]+)>/);
+              if (match) {
+                setImagePrompt(match[1]);
+              }
+            }
+          }
         },
         onError: (message: any) => {
           console.error("Error:", message);
