@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import Image from 'next/image';
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { VoiceClientAudio, VoiceClientProvider, useVoiceClient } from "realtime-ai-react";
+import { VoiceMessage } from "realtime-ai";
 import { AppProvider } from "@/components/context";
 import Header from "@/components/Header";
 import Splash from "@/components/Splash";
@@ -81,7 +82,11 @@ export default function Home() {
     if (voiceClient) {
       setConversation(prev => [...prev, { role: 'user', content: input }]);
       try {
-        await voiceClient.sendMessage(input);
+        const message: VoiceMessage = {
+          type: 'text',
+          data: input
+        };
+        await voiceClient.sendMessage(message);
       } catch (error) {
         console.error("Failed to send user input:", error);
       }
