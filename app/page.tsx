@@ -157,12 +157,15 @@ export default function Home() {
 
       console.log("Action sent successfully. Server response:", response);
 
-      if (response && response.type === 'error-response') {
-        throw new Error(response.data.error);
+      // Check for error in the response
+      if (response && typeof response === 'object' && 'error' in response) {
+        throw new Error(response.error as string);
       }
 
       // Process the actual response
-      const aiResponse = response.data.content || "No response from AI";
+      const aiResponse = response && typeof response === 'object' && 'data' in response
+        ? (response.data as { content: string }).content
+        : "No response from AI";
 
       // Add AI response to conversation
       setConversation(prev => [...prev, { role: 'assistant', content: aiResponse }]);
@@ -186,28 +189,27 @@ export default function Home() {
     }
   }, [voiceClientRef]);
 
-// Add this useEffect to set up an error listener
-useEffect(() => {
-  if (voiceClientRef.current) {
-    const errorHandler = (error: unknown) => {
-      console.error("VoiceClient error:", error);
-      if (typeof error === 'object' && error !== null && 'data' in error) {
-        setError(`VoiceClient error: ${JSON.stringify(error.data, null, 2)}`);
-      } else if (error instanceof Error) {
-        setError(`VoiceClient error: ${error.message}`);
-      } else {
-        setError('VoiceClient error: An unknown error occurred');
-      }
-      setIsLoading(false);
-    };
+  useEffect(() => {
+    if (voiceClientRef.current) {
+      const errorHandler = (error: unknown) => {
+        console.error("VoiceClient error:", error);
+        if (typeof error === 'object' && error !== null && 'data' in error) {
+          setError(`VoiceClient error: ${JSON.stringify(error.data, null, 2)}`);
+        } else if (error instanceof Error) {
+          setError(`VoiceClient error: ${error.message}`);
+        } else {
+          setError('VoiceClient error: An unknown error occurred');
+        }
+        setIsLoading(false);
+      };
 
-    voiceClientRef.current.on('error', errorHandler);
+      voiceClientRef.current.on('error', errorHandler);
 
-    return () => {
-      voiceClientRef.current?.off('error', errorHandler);
-    };
-  }
-}, [voiceClientRef.current]);
+      return () => {
+        voiceClientRef.current?.off('error', errorHandler);
+      };
+    }
+  }, [voiceClientRef.current]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
