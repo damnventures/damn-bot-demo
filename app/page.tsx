@@ -84,20 +84,22 @@ export default function Home() {
         onBotReady: () => {
           console.log("Bot is ready!");
         },
-        transcript: (data: any) => {
-          if (data.final) {
-            setStoryText((prevStory) => prevStory + data.text);
-            setConversation(prev => [...prev, { role: 'assistant', content: data.text }]);
+        onBotTranscript: (data: string) => {
+          setStoryText((prevStory) => prevStory + data);
+          setConversation(prev => [...prev, { role: 'assistant', content: data }]);
 
-            // Extract image prompt
-            const match = data.text.match(/<([^>]+)>/);
-            if (match) {
-              setImagePrompt(match[1]);
-            }
+          // Extract image prompt
+          const match = data.match(/<([^>]+)>/);
+          if (match) {
+            setImagePrompt(match[1]);
           }
         },
-        error: (error: any) => {
-          console.error("Error:", error);
+        onGenericMessage: (data: unknown) => {
+          console.log("Generic message received:", data);
+          // You might want to handle different types of messages here
+        },
+        onError: (message: any) => {
+          console.error("Error:", message);
         },
       },
     });
@@ -115,8 +117,9 @@ export default function Home() {
 
     if (voiceClientRef.current) {
       try {
-        // Disconnect the current session
-        voiceClientRef.current.disconnect();
+        // For now, we'll just restart the session with the new input
+        // This is not ideal, but it's a workaround given the limitations
+        await voiceClientRef.current.disconnect();
 
         // Update the config with the user's input
         const updatedConfig = [...defaultConfig];
